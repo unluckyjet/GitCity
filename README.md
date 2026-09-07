@@ -52,7 +52,7 @@ Each repository has a stable landscape identity: coast, highland, or river terra
 
 Press **Space** at the latest commit to replay from the beginning, or launch with `--history` to start at the first commit.
 
-- Small files draw as houses with pitched roofs; larger files become towers.
+- Small files draw as houses with pitched roofs; larger files become towers. Documentation, tooling, UI, tests, and configuration files use distinct facades and roof silhouettes. Related folders share repository-specific building materials; language remains visible in accents and inspection.
 - New streets are laid out near the older city, in order of first appearance.
 - Existing buildings keep their coordinates as files appear, grow, or disappear.
 - Replay opens close to the first street, then the camera continuously fits the **currently occupied city**, pulling back as it grows. Future files do not determine the early camera frame.

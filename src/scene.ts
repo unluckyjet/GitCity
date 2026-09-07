@@ -1,3 +1,4 @@
+import { architectureFor, paintArchitecture } from "./architecture.ts";
 import { paintLandscape, paintNeighborhood } from "./landscape.ts";
 import { geographyFor } from "./geography.ts";
 import { inScope } from "./atlas.ts";
@@ -339,13 +340,15 @@ export function renderScene(
         (now - new Date(b.lastModified).getTime()) / 86400000,
       );
       const activity = Math.max(0.1, Math.exp(-age / 110));
-      const wall = mix(b.color, selected ? 0.58 : 0.46),
-        side = mix(b.color, 0.29);
+      const architecture = architectureFor(b.path, state.worldStyle);
+      const wall = selected ? mix(architecture.wall, 1.2) : architecture.wall,
+        side = mix(architecture.wall, 0.65);
       const outline = selected
         ? palette.gold
         : mix(b.color, recentlyEdited ? 1 : 0.8);
       const seed = hash(b.path);
-      const house = b.height <= 5 && bw >= 4 && bh >= 3;
+      const house =
+        architecture.kind === "home" && b.height <= 5 && bw >= 4 && bh >= 3;
       for (let yy = roof + (house ? 2 : 1); yy <= ground; yy++) {
         inWorld(x, yy, "▏", outline, wall);
         for (let xx = 1; xx < bw; xx++) inWorld(x + xx, yy, " ", outline, wall);
@@ -368,9 +371,9 @@ export function renderScene(
       }
       if (house) {
         const mid = x + Math.floor(bw / 2);
-        inWorld(mid, roof, "▲", "#e3a078");
+        inWorld(mid, roof, "▲", architecture.roof);
         for (let xx = 1; xx < bw; xx++)
-          inWorld(x + xx, roof + 1, "▀", "#bb815f", wall);
+          inWorld(x + xx, roof + 1, "▀", architecture.roof, wall);
         inWorld(x, roof + 1, "╱", outline);
         inWorld(x + bw, roof + 1, "╲", outline);
         inWorld(mid, ground, "▯", mix(b.color, 0.7), wall);
@@ -392,6 +395,7 @@ export function renderScene(
             inWorld(x + Math.floor(bw / 2), roof - 2, "•", palette.gold);
         }
       }
+      paintArchitecture(b, state.worldStyle, x, roof, ground, bw, bh, inWorld);
       for (let xx = 0; xx <= bw; xx++)
         inWorld(x + xx, ground + 1, "▀", mix(b.color, selected ? 0.4 : 0.18));
       if (selected) {
@@ -403,7 +407,7 @@ export function renderScene(
         );
         inWorld(x + Math.floor(bw / 2), ground + 2, "◆", palette.gold);
       }
-      const hitY = Math.max(top, roof),
+      const hitY = Math.max(top, roof - 2),
         hitX = Math.max(2, x);
       const hitHeight = Math.min(bottom, ground + 2) - hitY,
         hitWidth = Math.min(width - 2, x + bw + 2) - hitX;

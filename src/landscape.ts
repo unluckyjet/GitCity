@@ -1,3 +1,4 @@
+import { architectureFor } from "./architecture.ts";
 import type { CityController } from "./controller.ts";
 import type { Action } from "./scene.ts";
 import {
@@ -154,7 +155,20 @@ export function paintLandscape(state: CityController, p: Painter) {
         dist = 1 + Math.sqrt(i) * 0.85;
       const bx = x + Math.round(Math.cos(angle) * dist * (large ? 1.8 : 1)),
         by = y + Math.round(Math.sin(angle) * dist * 0.48);
-      p.put(bx, by - 1, "▄", i % 3 === 0 ? "#d9aa79" : geo.style.roof);
+      const architecture = architectureFor(
+        site.region.buildings[i % site.region.buildings.length]!.path,
+        state.worldStyle,
+      );
+      p.put(
+        bx,
+        by - 1,
+        architecture.kind === "workshop"
+          ? "◢"
+          : architecture.kind === "library"
+            ? "▰"
+            : "▄",
+        architecture.roof,
+      );
       p.put(bx, by, "▪", i % 2 === 0 ? ink.light : ink.wall);
       p.actions.push({
         x: bx,
