@@ -8,6 +8,10 @@ const { version } = require("../package.json") as { version: string };
 
 export interface CliOptions {
   repo: string;
+  at?: string;
+  compare?: string;
+  focus?: string;
+  view?: string;
   history: boolean;
   speed: number;
   exclude: string[];
@@ -89,6 +93,20 @@ export function parseArgs(args: string[]): CliOptions {
       options.exclude.push(value);
       continue;
     }
+    if (
+      !positionalOnly &&
+      ["--at", "--compare", "--focus", "--view"].some(
+        (flag) => arg === flag || arg.startsWith(flag + "="),
+      )
+    ) {
+      const [value, next] = takeValue(arg, i);
+      i = next;
+      if (!value.trim()) throw new Error(`${arg} requires a value.`);
+      options[
+        arg.split("=")[0]!.slice(2) as "at" | "compare" | "focus" | "view"
+      ] = value;
+      continue;
+    }
     if (!positionalOnly && arg.startsWith("-"))
       throw new Error(`Unknown option: ${arg}. Run gitcity --help for usage.`);
     if (hasRepo)
@@ -112,6 +130,10 @@ Public repos are downloaded automatically; no GitHub token is needed.
 Local repositories still work with ./path or an absolute path. Defaults to .
 
 Options:
+  --at <ref>         Explore a specific commit or branch
+  --compare <A..B>   Compare two commits or branches
+  --focus <path>     Start at a file
+  --view <value>     Restore a shared camera view
   --history          Open at the first commit, ready to replay
   --speed <number>   Playback multiplier, 0.25–32 (default: 1)
   --exclude <glob>   Exclude paths; repeat for multiple patterns
@@ -232,6 +254,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     process.once("SIGTERM", cancel);
     const { loadRepository } = await import("./repository.ts");
     repository = await loadRepository(options.repo, {
+      ref: options.at,
       exclude: options.exclude,
       signal: controller.signal,
       onProgress:
@@ -258,6 +281,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       await runApp(repository, {
         history: options.history,
         speed: options.speed,
+        compare: options.compare,
+        focus: options.focus,
+        view: options.view,
       });
     }
   } catch (error) {

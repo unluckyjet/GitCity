@@ -3,6 +3,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import type {
+  Revision,
   Commit,
   FileChange,
   LoadOptions,
@@ -582,10 +583,55 @@ export async function loadRepository(
             .replace(/\n$/, "");
       name = basename(root).replace(/\.git$/, "");
     }
+    const resolveRevision = async (ref: string): Promise<string> => {
+      if (!ref || ref.startsWith("-") || /[\x00-\x20]/.test(ref))
+        throw new Error("Invalid commit or branch reference.");
+      try {
+        return (
+          await git(
+            root,
+            ["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"],
+            options.signal,
+          )
+        )
+          .toString()
+          .trim();
+      } catch (error) {
+        if (!remote || !/^[A-Za-z0-9_./-]+$/.test(ref) || ref.includes(".."))
+          throw error;
+        await git(
+          root,
+          [
+            "-c",
+            "credential.helper=",
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "--",
+            remote.url,
+            ref.replace(/^origin\//, ""),
+          ],
+          options.signal,
+        );
+        return (
+          await git(
+            root,
+            ["rev-parse", "--verify", "FETCH_HEAD^{commit}"],
+            options.signal,
+          )
+        )
+          .toString()
+          .trim();
+      }
+    };
     const head = (
       await git(
         root,
-        ["rev-parse", "--verify", "HEAD^{commit}"],
+        [
+          "rev-parse",
+          "--verify",
+          `${options.ref ? await resolveRevision(options.ref) : "HEAD"}^{commit}`,
+        ],
         options.signal,
       ).catch((error) => {
         if (error instanceof Error && error.name === "AbortError") throw error;
@@ -703,6 +749,44 @@ export async function loadRepository(
         truncated: truncated || rows.length > 600,
       };
     };
+    const revision = async (ref: string): Promise<Revision> => {
+      const hash = await resolveRevision(ref),
+        tree = await git(
+          root,
+          ["ls-tree", "-r", "-l", "-z", hash, "--"],
+          options.signal,
+        ),
+        date = (
+          await git(
+            root,
+            ["show", "-s", "--format=%aI", hash, "--"],
+            options.signal,
+          )
+        )
+          .toString()
+          .trim();
+      const files: RepoFile[] = [],
+        blobs = new Map<string, string>();
+      for (const entry of tree.toString("utf8").split("\0")) {
+        const tab = entry.indexOf("\t");
+        if (tab < 0) continue;
+        const metadata = entry.slice(0, tab).split(/\s+/),
+          path = entry.slice(tab + 1);
+        if (metadata[1] !== "blob" || !include(path)) continue;
+        blobs.set(path, metadata[2]!);
+        files.push({
+          path,
+          directory: dirname(path) === "." ? "" : dirname(path),
+          language: languageFor(path),
+          size: Number(metadata[3]),
+          commits: 0,
+          contributors: 0,
+          createdAt: date,
+          lastModified: date,
+        });
+      }
+      return { hash, files, blobs };
+    };
     options.onProgress?.(
       `Ready: ${history.commits.length.toLocaleString()} commits, ${history.paths.size.toLocaleString()} file paths.`,
     );
@@ -712,6 +796,59 @@ export async function loadRepository(
       githubUrl,
       commits: history.commits,
       allPaths: [...history.paths.keys()].sort(),
+      async compare(beforeRef, afterRef) {
+        const before = await revision(beforeRef),
+          after = await revision(afterRef);
+        const changes = new Map<
+          string,
+          "added" | "deleted" | "changed" | "unchanged"
+        >();
+        for (const path of new Set([
+          ...before.blobs.keys(),
+          ...after.blobs.keys(),
+        ]))
+          changes.set(
+            path,
+            !before.blobs.has(path)
+              ? "added"
+              : !after.blobs.has(path)
+                ? "deleted"
+                : before.blobs.get(path) === after.blobs.get(path)
+                  ? "unchanged"
+                  : "changed",
+          );
+        return { before, after, changes };
+      },
+      async diffRevisions(before, after, path) {
+        if (![before, after].every((h) => /^[a-f0-9]{40,64}$/.test(h)))
+          throw new Error("Expected resolved commit hashes.");
+        return boundedContent([
+          "--literal-pathspecs",
+          "diff",
+          "--no-ext-diff",
+          "--no-textconv",
+          "--no-color",
+          "--unified=3",
+          before,
+          after,
+          "--",
+          path,
+        ]);
+      },
+      async previewRevision(hash, path) {
+        if (!/^[a-f0-9]{40,64}$/.test(hash))
+          throw new Error("Expected a resolved commit hash.");
+        const blob = (
+          await git(
+            root,
+            ["rev-parse", "--verify", "--end-of-options", `${hash}:${path}`],
+            options.signal,
+          )
+        )
+          .toString()
+          .trim();
+        return boundedContent(["cat-file", "blob", blob]);
+      },
       async sources(index) {
         const snapshot = await getSnapshot(index),
           selected: RepoFile[] = [],

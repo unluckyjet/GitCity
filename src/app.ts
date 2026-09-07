@@ -183,6 +183,21 @@ export function handleKey(
   quit: () => void,
 ) {
   const name = key.name.toLowerCase();
+  if (state.compareInput && !(key.ctrl && name === "c")) {
+    if (name === "escape") state.compareInput = false;
+    else if (name === "enter" || name === "return")
+      void state.startComparison();
+    else if (name === "backspace")
+      state.compareText = [...state.compareText].slice(0, -1).join("");
+    else if (
+      !key.ctrl &&
+      key.sequence &&
+      !/[\u0000-\u001f\u007f]/.test(key.sequence)
+    )
+      state.compareText = (state.compareText + key.sequence).slice(0, 240);
+    state.onChange();
+    return;
+  }
   if (state.searchOpen && !(key.ctrl && name === "c")) {
     if (name === "escape") state.searchOpen = false;
     else if (name === "return" || name === "enter") state.activateResult();
@@ -203,6 +218,20 @@ export function handleKey(
     )
       state.updateSearch(state.query + key.sequence);
     state.onChange();
+    return;
+  }
+  if (name === "b") {
+    if (state.comparison) void state.clearComparison();
+    else {
+      state.compareInput = true;
+      state.onChange();
+    }
+    return;
+  }
+  if (state.comparison && (name === "left" || name === "right")) {
+    state.setCompareFraction(
+      state.compareFraction + (name === "left" ? -0.05 : 0.05),
+    );
     return;
   }
   if (name === "j") {

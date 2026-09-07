@@ -31,6 +31,13 @@ export interface Repository {
   commits: Commit[];
   allPaths: string[];
   githubUrl?: string;
+  compare?(before: string, after: string): Promise<Comparison>;
+  diffRevisions?(
+    before: string,
+    after: string,
+    path: string,
+  ): Promise<FileContent>;
+  previewRevision?(hash: string, path: string): Promise<FileContent>;
   sources?(index: number): Promise<SourceSnapshot>;
   snapshot(index: number): Promise<RepoFile[]>;
   inspect(index: number, path: string): Promise<RepoFile | undefined>;
@@ -46,6 +53,7 @@ export interface FileContent {
 }
 
 export interface LoadOptions {
+  ref?: string;
   exclude?: string[];
   onProgress?: (message: string) => void;
   signal?: AbortSignal;
@@ -82,6 +90,9 @@ export interface CityLayout {
 }
 
 export interface AppOptions {
+  compare?: string;
+  focus?: string;
+  view?: string;
   history: boolean;
   speed: number;
 }
@@ -89,4 +100,15 @@ export interface AppOptions {
 export interface SourceSnapshot {
   texts: Map<string, string>;
   skipped: string[];
+}
+
+export interface Revision {
+  hash: string;
+  files: RepoFile[];
+  blobs: Map<string, string>;
+}
+export interface Comparison {
+  before: Revision;
+  after: Revision;
+  changes: Map<string, "added" | "deleted" | "changed" | "unchanged">;
 }

@@ -22,6 +22,7 @@ import {
 import type { FileContent } from "./types.ts";
 import { createCityLayout } from "./city.ts";
 import type {
+  Comparison,
   AppOptions,
   Building,
   City,
@@ -74,6 +75,67 @@ export class CityController {
   contentLoading = false;
   contentScroll = 0;
   onOpenUrl: (url: string) => void = () => {};
+  comparison: Comparison | undefined;
+  compareInput = false;
+  compareText = "HEAD~1..HEAD";
+  compareFraction = 0.5;
+  private compareRequest = 0;
+  async startComparison(spec = this.compareText) {
+    const parts = spec.split("..");
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      this.error =
+        "Use before..after, for example main..feature or HEAD~1..HEAD.";
+      this.onChange();
+      return;
+    }
+    this.stopPlayback();
+    this.stopTour();
+    this.compareInput = false;
+    this.loading = true;
+    const id = ++this.compareRequest;
+    this.onChange();
+    try {
+      if (!this.repository.compare)
+        throw new Error("Version comparison unavailable.");
+      const comparison = await this.repository.compare(parts[0], parts[1]);
+      if (id !== this.compareRequest || this.closed) return;
+      this.comparison = comparison;
+      this.compareText = spec;
+      const union = new Map(
+        [...comparison.before.files, ...comparison.after.files].map((f) => [
+          f.path,
+          f,
+        ]),
+      );
+      this.city = this.layout.build([...union.values()]);
+      this.refreshTerritories();
+      this.selected = undefined;
+      this.panel = false;
+      this.ruins = [];
+      this.overlay = "off";
+      this.dependencyMode = false;
+      this.autoCamera = true;
+      this.fitScope();
+      this.settleCamera();
+      this.error = "";
+    } catch (error) {
+      if (id === this.compareRequest) this.error = String(error);
+    } finally {
+      if (id === this.compareRequest) {
+        this.loading = false;
+        this.onChange();
+      }
+    }
+  }
+  async clearComparison() {
+    this.compareRequest++;
+    this.comparison = undefined;
+    await this.seek(this.index);
+  }
+  setCompareFraction(value: number) {
+    this.compareFraction = Math.max(0, Math.min(1, value));
+    this.onChange();
+  }
   tourMenu = false;
   tour:
     | {
@@ -259,7 +321,9 @@ export class CityController {
   private previousTick = 0;
   private introView = false;
 
+  private initialOptions: AppOptions;
   constructor(repository: Repository, options: AppOptions) {
+    this.initialOptions = options;
     this.repository = repository;
     this.worldStyle = styleFor(repository.githubUrl ?? repository.name);
     this.atlas = new AtlasIndex(repository.allPaths);
@@ -284,6 +348,9 @@ export class CityController {
     await this.seek(this.index);
     if (this.timelineMode && this.index === 0) this.frameBeginning();
     else this.resetCamera(true);
+    if (this.initialOptions.compare)
+      await this.startComparison(this.initialOptions.compare);
+    if (this.initialOptions.focus) this.visitFile(this.initialOptions.focus);
   }
 
   get commit() {
@@ -304,6 +371,8 @@ export class CityController {
       Math.min(this.repository.commits.length - 1, Math.round(index)),
     );
     this.stopTour();
+    this.compareRequest++;
+    this.comparison = undefined;
     this.requestedIndex = target;
     const requestId = ++this.requestId;
     this.loading = true;
@@ -717,10 +786,13 @@ export class CityController {
       index = this.index,
       detailId = ++this.detailId;
     try {
-      const detail = await this.repository.inspect(
-        this.selectedRuin?.lastIndex ?? index,
-        path,
-      );
+      const detail = this.comparison
+        ? (this.comparison.after.files.find((f) => f.path === path) ??
+          this.comparison.before.files.find((f) => f.path === path))
+        : await this.repository.inspect(
+            this.selectedRuin?.lastIndex ?? index,
+            path,
+          );
       if (
         !this.closed &&
         detailId === this.detailId &&
@@ -943,13 +1015,26 @@ export class CityController {
           ? ruin.lastIndex
           : ruin.deletionIndex
         : index;
-      const result = method
-        ? await method(contentIndex, path)
-        : {
-            text: "Preview unavailable for this repository.",
-            binary: false,
-            truncated: false,
-          };
+      const revision =
+        this.comparison?.[
+          this.comparison.after.blobs.has(path) ? "after" : "before"
+        ];
+      const result =
+        this.comparison && tab === "diff" && this.repository.diffRevisions
+          ? await this.repository.diffRevisions(
+              this.comparison.before.hash,
+              this.comparison.after.hash,
+              path,
+            )
+          : revision && this.repository.previewRevision
+            ? await this.repository.previewRevision(revision.hash, path)
+            : method
+              ? await method(contentIndex, path)
+              : {
+                  text: "Preview unavailable for this repository.",
+                  binary: false,
+                  truncated: false,
+                };
       if (
         !this.closed &&
         id === this.contentId &&
@@ -979,8 +1064,12 @@ export class CityController {
       this.onChange();
       return;
     }
+    const revision =
+      this.comparison?.[
+        this.comparison.after.blobs.has(this.selected) ? "after" : "before"
+      ].hash;
     this.onOpenUrl(
-      `${base}/blob/${this.repository.commits[this.selectedRuin?.lastIndex ?? this.index]!.hash}/${this.selected.split("/").map(encodeURIComponent).join("/")}`,
+      `${base}/blob/${revision ?? this.repository.commits[this.selectedRuin?.lastIndex ?? this.index]!.hash}/${this.selected.split("/").map(encodeURIComponent).join("/")}`,
     );
   }
   recenter(x: number, y: number) {

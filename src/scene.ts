@@ -96,6 +96,7 @@ export function renderScene(
   width: number,
   height: number,
   frame = 0,
+  comparisonPass = false,
 ): Scene {
   width = Math.max(1, Math.floor(width));
   height = Math.max(1, Math.floor(height));
@@ -826,6 +827,82 @@ export function renderScene(
       : "WASD move   Click select   / search   Enter inspect   Esc back   ? help";
   text(3, height - 1, footer, palette.muted, palette.bg, width - 6);
 
+  if (state.comparison && !comparisonPass) {
+    const c = state.comparison;
+    const side = (which: "before" | "after") => {
+      const clone = Object.create(state) as CityController;
+      clone.city = state.layout.build(c[which].files);
+      clone.territories = state.atlas.territories(
+        state.scope,
+        clone.city.buildings,
+      );
+      clone.panel = false;
+      clone.selected = undefined;
+      clone.ruinsVisible = false;
+      clone.tour = undefined;
+      clone.overlay = "off";
+      return renderScene(clone, width, height, frame, true);
+    };
+    const before = side("before"),
+      after = side("after"),
+      divider = 2 + Math.round((width - 4) * state.compareFraction);
+    for (let y = top; y < bottom - 2; y++)
+      for (let x = 2; x < width - 2; x++)
+        cells[y * width + x] = {
+          ...(x < divider ? before : after).cells[y * width + x]!,
+        };
+    for (let y = top; y < bottom - 2; y++)
+      inWorld(divider, y, "│", palette.gold);
+    const counts = { added: 0, deleted: 0, changed: 0, unchanged: 0 };
+    for (const value of c.changes.values()) counts[value]++;
+    for (const hit of hits) {
+      const status = c.changes.get(hit.building.path);
+      if (status && status !== "unchanged") {
+        const x = hit.x,
+          y = hit.y;
+        const visible =
+          (status !== "added" && x < divider) ||
+          (status !== "deleted" && x >= divider);
+        if (visible)
+          inWorld(
+            x,
+            y,
+            status === "added" ? "+" : status === "deleted" ? "−" : "~",
+            status === "added"
+              ? "#84d9ac"
+              : status === "deleted"
+                ? "#ed978a"
+                : "#edc479",
+          );
+      }
+    }
+    fill(2, bottom - 2, width - 4, 2, palette.panel);
+    text(
+      4,
+      bottom - 2,
+      `${c.before.hash.slice(0, 7)} ← ${Math.round(state.compareFraction * 100)}% → ${c.after.hash.slice(0, 7)}   +${counts.added} −${counts.deleted} ~${counts.changed}   B exit`,
+      palette.gold,
+      palette.panel,
+      width - 8,
+    );
+    for (let x = 4; x < width - 4; x++)
+      put(
+        x,
+        bottom - 1,
+        x === divider ? "◆" : "─",
+        palette.green,
+        palette.panel,
+      );
+    for (let x = 4; x < width - 4; x++)
+      actions.push({
+        x,
+        y: bottom - 1,
+        width: 1,
+        height: 1,
+        label: "Move comparison slider",
+        run: () => state.setCompareFraction((x - 4) / (width - 9)),
+      });
+  }
   if (state.selected && !state.panel) {
     const pw = Math.min(42, width - 6),
       px = width - pw - 3,
@@ -1003,7 +1080,11 @@ export function renderScene(
     text(
       px + 2,
       py + 1,
-      state.selectedRuin ? "DELETED FILE" : "FILE DETAILS",
+      state.selectedRuin
+        ? "DELETED FILE"
+        : state.comparison
+          ? `FILE · ${state.comparison.changes.get(state.selected ?? "") ?? "unchanged"}`
+          : "FILE DETAILS",
       palette.gold,
       palette.panel,
       pw - 4,
@@ -1271,6 +1352,36 @@ export function renderScene(
       });
     });
   }
+  if (state.compareInput) {
+    const pw = Math.min(70, width - 8),
+      px = Math.floor((width - pw) / 2),
+      py = top + 3;
+    fill(px, py, pw, 7, palette.panel);
+    text(
+      px + 2,
+      py + 1,
+      "COMPARE TWO REVISIONS",
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
+    text(
+      px + 2,
+      py + 3,
+      `${state.compareText}▏`,
+      palette.ink,
+      palette.panel,
+      pw - 4,
+    );
+    text(
+      px + 2,
+      py + 5,
+      "before..after · Enter compare · Esc cancel",
+      palette.muted,
+      palette.panel,
+      pw - 4,
+    );
+  }
   if (state.help) {
     const pw = Math.min(67, width - 8),
       ph = Math.min(21, height - 4),
@@ -1289,6 +1400,7 @@ export function renderScene(
       "/               Search files and folders; Enter to fly",
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
+      "B               Compare commits/branches; arrows slide",
       "J               Guided tours; [ ] stops, Space pause",
       "P / O           Import routes / activity overlays",
       "M / N           Pause ambient life / change lighting",

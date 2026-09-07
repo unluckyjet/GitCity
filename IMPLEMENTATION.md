@@ -11,7 +11,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
 - [x] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
 - [x] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
-- [ ] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
+- [x] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
 - [ ] Shareable views: export screenshots and short replay artifacts, and a reproducible command for the repository, commit, and location.
 
 Completion requires native OpenTUI interaction and visual checks on small fixtures and React, relevant automated coverage, updated documentation, an updated local installation, and all feature commits present on GitHub. A checked box is not sufficient evidence on its own; validation results are recorded alongside completed features.
@@ -30,3 +30,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Activity overlays: historical/windowed churn, exact bytes, graph incoming counts, and dominant author calculations pass fixture tests. `O` cycles modes with a visible scale and selected-file values; ownership uses author names and commit touches rather than line attribution. Native rendering tests pass.
 
 - Guided tours: entry/busy ranking and cycle-safe real-edge journeys pass; native picker clicks start a tour, bracket keys advance, Space pauses, Esc exits, and seeking invalidates the tour. Captions distinguish static imports from runtime traces.
+
+- Comparison: real two-branch fixture verifies exact blobs, equal-size modifications, additions/deletions, last-source and two-revision diffs, slider endpoints, exit restoration, and `--at` branch history. `B` accepts A..B; left/right or clicking the slider reveals either revision. Missing public branch refs are fetched into the temporary clone.
