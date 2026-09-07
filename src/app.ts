@@ -205,6 +205,32 @@ export function handleKey(
     state.onChange();
     return;
   }
+  if (name === "j") {
+    state.tourMenu = !state.tourMenu;
+    if (state.tour) state.tour.playing = false;
+    state.onChange();
+    return;
+  }
+  if (state.tourMenu && ["1", "2", "3"].includes(key.sequence)) {
+    void state.startTour(
+      (["entrypoints", "journey", "busy"] as const)[Number(key.sequence) - 1]!,
+    );
+    return;
+  }
+  if (state.tour && (key.sequence === "[" || key.sequence === "]")) {
+    state.tourStep(key.sequence === "[" ? -1 : 1);
+    return;
+  }
+  if (state.tour && (name === "space" || key.sequence === " ")) {
+    state.tour.playing = !state.tour.playing;
+    state.tour.nextAt = state.clock + 8000;
+    state.onChange();
+    return;
+  }
+  if (name === "escape" && (state.tour || state.tourMenu)) {
+    state.stopTour();
+    return;
+  }
   if (key.sequence === "/" || name === "/") {
     state.openSearch();
     return;

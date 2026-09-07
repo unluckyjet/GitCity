@@ -1161,6 +1161,116 @@ export function renderScene(
     for (let i = hits.length - 1; i >= 0; i--)
       if (hits[i].x >= px) hits.splice(i, 1);
   }
+  if (state.tour) {
+    const tour = state.tour,
+      stop = tour.stops[tour.index]!,
+      pw = width - 10,
+      py = bottom - 5;
+    fill(5, py, pw, 5, palette.panel);
+    text(
+      7,
+      py,
+      `${tour.index + 1}/${tour.stops.length} · ${stop.path}`,
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
+    text(7, py + 1, stop.caption, palette.ink, palette.panel, pw - 4);
+    text(
+      7,
+      py + 3,
+      `[ Previous   ] Next   Space ${tour.playing ? "pause" : "play"}   Esc finish`,
+      palette.green,
+      palette.panel,
+      pw - 4,
+    );
+    actions.push(
+      {
+        x: 7,
+        y: py + 3,
+        width: 12,
+        height: 1,
+        label: "Previous tour stop",
+        run: () => state.tourStep(-1),
+      },
+      {
+        x: 21,
+        y: py + 3,
+        width: 9,
+        height: 1,
+        label: "Next tour stop",
+        run: () => state.tourStep(1),
+      },
+      {
+        x: 32,
+        y: py + 3,
+        width: 13,
+        height: 1,
+        label: "Play/pause tour",
+        run: () => {
+          tour.playing = !tour.playing;
+          tour.nextAt = state.clock + 8000;
+          state.onChange();
+        },
+      },
+      {
+        x: 48,
+        y: py + 3,
+        width: 12,
+        height: 1,
+        label: "Finish tour",
+        run: () => state.stopTour(),
+      },
+    );
+  }
+  if (state.tourMenu) {
+    const pw = Math.min(66, width - 8),
+      px = Math.floor((width - pw) / 2),
+      py = top + 2;
+    fill(px, py, pw, 10, palette.panel);
+    text(
+      px + 2,
+      py + 1,
+      "TAKE A WALK · J close",
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
+    const choices = [
+      [
+        "entrypoints",
+        "1  Where things begin",
+        "Manifest and conventional entry candidates",
+      ],
+      [
+        "journey",
+        "2  Follow the imports",
+        "A journey from the selected file or an entry",
+      ],
+      ["busy", "3  The busiest addresses", "Files touched by the most commits"],
+    ] as const;
+    choices.forEach(([kind, title, subtitle], i) => {
+      text(px + 2, py + 3 + i * 2, title, palette.ink, palette.panel, pw - 4);
+      text(
+        px + 2,
+        py + 4 + i * 2,
+        subtitle,
+        palette.muted,
+        palette.panel,
+        pw - 4,
+      );
+      actions.push({
+        x: px,
+        y: py + 3 + i * 2,
+        width: pw,
+        height: 2,
+        label: `Start ${kind} tour`,
+        run: () => {
+          void state.startTour(kind);
+        },
+      });
+    });
+  }
   if (state.help) {
     const pw = Math.min(67, width - 8),
       ph = Math.min(21, height - 4),
@@ -1179,6 +1289,7 @@ export function renderScene(
       "/               Search files and folders; Enter to fly",
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
+      "J               Guided tours; [ ] stops, Space pause",
       "P / O           Import routes / activity overlays",
       "M / N           Pause ambient life / change lighting",
       "U               Show / hide deleted foundations",

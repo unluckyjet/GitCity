@@ -9,7 +9,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Dependency traffic: resolve actual repository imports; select files to see their dependency routes and animated traffic.
 - [x] Unique repository landscapes: stable repository identity seeds distinct terrain and architecture; history playback preserves geography.
 - [x] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
-- [ ] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
+- [x] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
 - [x] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
 - [ ] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
 - [ ] Shareable views: export screenshots and short replay artifacts, and a reproducible command for the repository, commit, and location.
@@ -28,3 +28,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Dependency traffic: AST tests exclude comments/string decoys and verify relative imports, extension substitution, index modules, tsconfig aliases, workspace packages, unresolved imports, and incoming edges. Exact Git batch source reads and clickable file routes pass with repository/native UI checks. Coverage is JS/TS literal imports; limits and unresolved imports are visible.
 
 - Activity overlays: historical/windowed churn, exact bytes, graph incoming counts, and dominant author calculations pass fixture tests. `O` cycles modes with a visible scale and selected-file values; ownership uses author names and commit touches rather than line attribution. Native rendering tests pass.
+
+- Guided tours: entry/busy ranking and cycle-safe real-edge journeys pass; native picker clicks start a tour, bracket keys advance, Space pauses, Esc exits, and seeking invalidates the tour. Captions distinguish static imports from runtime traces.

@@ -1,4 +1,7 @@
 import {
+  createTour,
+  type TourKind,
+  type TourStop,
   activityMetrics,
   overlayModes,
   type Overlay,
@@ -71,6 +74,58 @@ export class CityController {
   contentLoading = false;
   contentScroll = 0;
   onOpenUrl: (url: string) => void = () => {};
+  tourMenu = false;
+  tour:
+    | {
+        kind: TourKind;
+        stops: TourStop[];
+        index: number;
+        playing: boolean;
+        nextAt: number;
+      }
+    | undefined;
+  private tourRequest = 0;
+  async startTour(kind: TourKind) {
+    const id = ++this.tourRequest,
+      index = this.index,
+      selected = this.selected;
+    this.stopPlayback();
+    this.tourMenu = false;
+    const graph = kind === "busy" ? this.graph : await this.ensureGraph();
+    if (id !== this.tourRequest || this.closed || index !== this.index) return;
+    const stops = createTour(kind, this.city.buildings, graph, selected);
+    if (!stops.length) {
+      this.error =
+        "No matching tour stops at this commit. Try busiest files or select a file with imports.";
+      this.onChange();
+      return;
+    }
+    this.tour = {
+      kind,
+      stops,
+      index: 0,
+      playing: true,
+      nextAt: this.clock + 8000,
+    };
+    this.tourStep(0);
+  }
+  tourStep(delta: number) {
+    if (!this.tour) return;
+    this.tour.index = Math.max(
+      0,
+      Math.min(this.tour.stops.length - 1, this.tour.index + delta),
+    );
+    this.tour.nextAt = this.clock + 8000;
+    this.visitFile(this.tour.stops[this.tour.index]!.path);
+    this.panel = false;
+    this.onChange();
+  }
+  stopTour() {
+    this.tour = undefined;
+    this.tourMenu = false;
+    this.tourRequest++;
+    this.onChange();
+  }
   overlay: Overlay = "off";
   private metricCache:
     | {
@@ -248,6 +303,7 @@ export class CityController {
       0,
       Math.min(this.repository.commits.length - 1, Math.round(index)),
     );
+    this.stopTour();
     this.requestedIndex = target;
     const requestId = ++this.requestId;
     this.loading = true;
@@ -370,6 +426,13 @@ export class CityController {
     this.ambientTick = now;
     const hadTransitions = this.transitions.size > 0;
     this.clock = now;
+    if (this.tour?.playing && now >= this.tour.nextAt) {
+      if (this.tour.index < this.tour.stops.length - 1) this.tourStep(1);
+      else {
+        this.tour.playing = false;
+        this.onChange();
+      }
+    }
     for (const [path, change] of this.transitions)
       if (now - change.start > 1200) this.transitions.delete(path);
     const centerX = this.camera.x + this.viewport.width / (2 * this.zoom);
