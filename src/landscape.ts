@@ -1,3 +1,4 @@
+import { planNeighborhood, settlementLots } from "./urban.ts";
 import { architectureFor } from "./architecture.ts";
 import type { CityController } from "./controller.ts";
 import type { Action } from "./scene.ts";
@@ -150,11 +151,18 @@ export function paintLandscape(state: CityController, p: Painter) {
       continue;
     // Warm roof clusters gather around a taller civic center.
     const count = large ? (geo.level ? 18 : 11) : site.size > 4 ? 5 : 2;
+    if (large) {
+      for (let dx = -7; dx <= 7; dx++)
+        p.put(x + dx, y + 1, "─", ink.road, "#586451");
+      for (let dy = -3; dy <= 3; dy++) p.put(x - 7, y + dy, "│", ink.road);
+      p.put(x - 1, y + 2, "▪", "#8fb1a0");
+      p.put(x, y + 2, "◉", "#87b9b9");
+      p.put(x + 1, y + 2, "▪", "#8fb1a0");
+    }
     for (let i = 0; i < count; i++) {
-      const angle = i * 2.399 + seed,
-        dist = 1 + Math.sqrt(i) * 0.85;
-      const bx = x + Math.round(Math.cos(angle) * dist * (large ? 1.8 : 1)),
-        by = y + Math.round(Math.sin(angle) * dist * 0.48);
+      const lot = settlementLots(count)[i]!;
+      const bx = x + Math.round(lot.x * (large ? 1 : 0.5)),
+        by = y + lot.y;
       const architecture = architectureFor(
         site.region.buildings[i % site.region.buildings.length]!.path,
         state.worldStyle,
@@ -203,6 +211,21 @@ export function paintLandscape(state: CityController, p: Painter) {
       height: 6,
       label: `${site.region.path || "./"} · ${site.region.buildings.length.toLocaleString()} files · click to explore`,
       run: () => state.enter(site.region.path, site.region.direct),
+    });
+  }
+  for (const dock of geo.docks) {
+    const x = sx(dock.x),
+      y = sy(dock.y);
+    p.put(x - 1, y, "╞", "#d0ad77");
+    p.put(x, y, "═", "#d0ad77");
+    p.put(x + 1, y, "╡", "#d0ad77");
+    p.actions.push({
+      x: x - 1,
+      y,
+      width: 3,
+      height: 1,
+      label: `${dock.site.region.path || "./"} · ${dock.site.region.buildings.length} files`,
+      run: () => state.enter(dock.site.region.path, dock.site.region.direct),
     });
   }
   // Cartographic labels use real folder names; smaller sites reveal on hover.
@@ -282,52 +305,78 @@ export function paintNeighborhood(state: CityController, p: Painter) {
     }
   const sx = (x: number) => Math.round((x - cx) * z) + 2,
     sy = (y: number) => Math.round((y - cy) * z) + p.top;
-  for (const district of state.visibleCity.districts) {
-    const x = sx(district.x - 2),
-      right = sx(district.x + district.width + 2);
-    if (right < 2 || x >= p.width - 2) continue;
-    const grounds = [...new Set(district.buildings.map((b) => b.y))].sort(
-      (a, b) => a - b,
-    );
-    for (const ground of grounds) {
-      const y = sy(ground + 2),
-        roadHeight = Math.max(1, Math.round(z * 1.6));
-      for (let yy = y; yy < y + roadHeight; yy++)
-        for (let xx = Math.max(2, x); xx < Math.min(p.width - 2, right); xx++)
+  const plan = planNeighborhood(state.visibleCity);
+  for (const street of plan.streets)
+    for (let i = 1; i < street.points.length; i++) {
+      const a = street.points[i - 1]!,
+        b = street.points[i]!;
+      const ax = sx(a.x),
+        ay = sy(a.y),
+        bx = sx(b.x),
+        by = sy(b.y);
+      const left = Math.max(2, Math.min(ax, bx)),
+        right = Math.min(p.width - 3, Math.max(ax, bx)),
+        top = Math.max(p.top, Math.min(ay, by)),
+        bottom = Math.min(p.bottom - 1, Math.max(ay, by));
+      if (ay === by) {
+        if (ay < p.top || ay >= p.bottom) continue;
+        for (let xx = left; xx <= right; xx++) {
           p.put(
             xx,
-            yy,
-            yy === y && Math.floor((xx - x) / 3) % 2 === 0 ? "─" : " ",
-            "#9d9d85",
+            ay,
+            street.kind === "avenue" && Math.floor((xx - ax) / 3) % 2 === 0
+              ? "─"
+              : " ",
+            "#a6a58d",
             "#293334",
           );
-      if (z > 0.5) {
-        for (let xx = Math.max(2, x); xx < Math.min(p.width - 2, right); xx++) {
-          p.put(xx, y - 1, "▄", "#657062");
-          p.put(xx, y + roadHeight, "▀", "#4e6251");
+          if (z > 0.5 && street.kind === "avenue") {
+            p.put(xx, ay - 1, "▄", "#687467");
+            p.put(xx, ay + 1, "▀", "#586654");
+          }
         }
-        for (
-          let wx = district.x + 1;
-          wx < district.x + district.width;
-          wx += 22
-        ) {
-          const lx = sx(wx);
-          p.put(lx, y - 2, "•", "#ffda92");
-          p.put(lx, y - 1, "│", "#889884");
-        }
+        if (z > 0.5 && street.kind === "avenue")
+          for (let wx = a.x + 3; wx < b.x; wx += 22) {
+            const lx = sx(wx);
+            p.put(lx, ay - 2, "•", "#ffda92");
+            p.put(lx, ay - 1, "│", "#889884");
+          }
+      } else if (ax === bx) {
+        if (ax < 2 || ax >= p.width - 2) continue;
+        for (let yy = top; yy <= bottom; yy++)
+          p.put(
+            ax,
+            yy,
+            street.kind === "avenue" && yy % 3 === 0 ? "┊" : " ",
+            "#9d9d85",
+            street.kind === "avenue" ? "#293334" : "#687064",
+          );
       }
     }
-    if (grounds.length > 1) {
-      const first = sy(grounds[0]! + 2),
-        last = sy(grounds.at(-1)! + 2);
-      for (
-        let yy = Math.max(p.top, first);
-        yy <= Math.min(p.bottom - 1, last);
-        yy++
-      ) {
-        p.put(x, yy, " ", "#9d9d85", "#293334");
-        p.put(x + 1, yy, yy % 3 === 0 ? "┊" : " ", "#9d9d85", "#293334");
+  if (z > 0.45)
+    for (const place of plan.places) {
+      const x = sx(place.x),
+        y = sy(place.y),
+        w = Math.max(3, Math.round(place.width * z));
+      if (place.kind === "garden") {
+        for (let i = 0; i < w; i++)
+          p.put(
+            x + i,
+            y,
+            i % 2 === 0 ? "♠" : "·",
+            i % 2 === 0 ? "#739d70" : "#d0b37e",
+            "#355b42",
+          );
+      } else {
+        for (let i = 0; i < w; i++)
+          p.put(x + i, y, i % 2 === 0 ? "▦" : "·", "#99a391", "#586456");
+        p.put(
+          x + Math.floor(w / 2),
+          y,
+          place.kind === "square" ? "◉" : "♠",
+          place.kind === "square" ? "#a7d2c9" : "#a8c18f",
+          "#586456",
+        );
       }
     }
-  }
 }

@@ -49,6 +49,7 @@ export class Geography {
   readonly style: WorldStyle;
   readonly settlements: Settlement[];
   readonly roads: Road[] = [];
+  readonly docks: { x: number; y: number; site: Settlement }[] = [];
   constructor(territories: Territory[], identity = "") {
     this.style = styleFor(identity);
     this.level = Math.max(
@@ -73,6 +74,20 @@ export class Geography {
         }
         return { region, x, y, size: Math.log2(region.buildings.length + 1) };
       });
+    for (const site of this.settlements) {
+      if (this.elevation(site.x, site.y) > 0.4) continue;
+      let best: { x: number; y: number; distance: number } | undefined;
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8)
+        for (let distance = 2; distance < 30; distance += 2) {
+          const x = site.x + Math.cos(angle) * distance * 2,
+            y = site.y + Math.sin(angle) * distance;
+          if (this.elevation(x, y) < 0.04) {
+            if (!best || distance < best.distance) best = { x, y, distance };
+            break;
+          }
+        }
+      if (best) this.docks.push({ x: best.x, y: best.y, site });
+    }
     // A minimum spanning road network connects every occupied settlement.
     const count = this.settlements.length,
       joined = new Set<number>();

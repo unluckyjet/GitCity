@@ -2,7 +2,7 @@
 
 The full requested scope is the eleven ideas accepted on September 6, 2026. Each completed feature is verified, committed, and pushed to `origin/main` separately. Existing functionality and public-repository loading remain supported.
 
-- [ ] Believable street layouts: connected approach roads, central squares, lanes, parks/courtyards, waterfront docks; buildings face their streets.
+- [x] Believable street layouts: connected approach roads, central squares, lanes, parks/courtyards, waterfront docks; buildings face their streets.
 - [x] Architectural identity: distinguish documentation, build tooling, UI, and other files through silhouettes/materials; related folders share a style.
 - [ ] Continuous zoom: retain spatially aligned terrain and landmarks while revealing settlements, streets, and files; avoid unrelated coordinate resets.
 - [ ] Ambient life: road traffic, chimney smoke, boats, cloud shadows, and a day/night lighting cycle, with a pause/reduced-motion control.
@@ -20,3 +20,4 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 
 - Unique landscapes: `tests/world-style.test.ts` verifies canonical GitHub identity, distinct sampled terrain, stable positions across history, and cache identity. Native atlas/UI tests pass with the seeded renderer.
 - Architecture: role classification and distinct drawing tests pass; shared folder materials are stable. Native React exploration captures match every scene cell, including the new roof glyphs.
+- Street planning: `tests/urban.test.ts` checks every file entrance meets an avenue, plazas/gardens avoid file facades, lots do not overlap, and distance-based traffic paths traverse junctions correctly. Native React captures and 21 layout/UI checks pass.

@@ -9,9 +9,9 @@ import type {
 const MAX_HEIGHT = 12;
 const FILES_PER_BLOCK = 12;
 const SLOT_WIDTH = 11;
-const ROW_HEIGHT = MAX_HEIGHT + 3;
+const ROW_HEIGHT = MAX_HEIGHT + 7;
 const STREET_X = 5;
-const STREET_Y = 4;
+const STREET_Y = 8;
 
 const MATERIALS: Record<string, string> = {
   typescript: "#e3b85c",
