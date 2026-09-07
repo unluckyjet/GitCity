@@ -1,3 +1,9 @@
+import {
+  activityMetrics,
+  overlayModes,
+  type Overlay,
+  type Metric,
+} from "./insights.ts";
 import { analyzeDependencies, type DependencyGraph } from "./dependencies.ts";
 import { RuinIndex, type Ruin } from "./ruins.ts";
 import { styleFor, type WorldStyle } from "./world-style.ts";
@@ -65,6 +71,45 @@ export class CityController {
   contentLoading = false;
   contentScroll = 0;
   onOpenUrl: (url: string) => void = () => {};
+  overlay: Overlay = "off";
+  private metricCache:
+    | {
+        mode: Overlay;
+        city: City;
+        graph: DependencyGraph | undefined;
+        values: Map<string, Metric>;
+      }
+    | undefined;
+  get metrics() {
+    if (
+      this.metricCache?.mode === this.overlay &&
+      this.metricCache.city === this.city &&
+      this.metricCache.graph === this.graph
+    )
+      return this.metricCache.values;
+    const values = activityMetrics(
+      this.overlay,
+      this.city.buildings,
+      this.repository.commits,
+      this.index,
+      this.graph,
+    );
+    this.metricCache = {
+      mode: this.overlay,
+      city: this.city,
+      graph: this.graph,
+      values,
+    };
+    return values;
+  }
+  cycleOverlay() {
+    this.overlay =
+      overlayModes[
+        (overlayModes.indexOf(this.overlay) + 1) % overlayModes.length
+      ]!;
+    if (this.overlay === "dependents") void this.ensureGraph();
+    this.onChange();
+  }
   dependencyMode = false;
   graph: DependencyGraph | undefined;
   graphLoading = false;
@@ -106,7 +151,8 @@ export class CityController {
   }
   toggleDependencies() {
     this.dependencyMode = !this.dependencyMode;
-    if (this.dependencyMode) void this.ensureGraph();
+    if (this.dependencyMode || this.overlay === "dependents")
+      void this.ensureGraph();
     this.onChange();
   }
   get connections() {
@@ -250,7 +296,8 @@ export class CityController {
       this.ruins = this.ruinIndex.at(target, new Set(files.map((f) => f.path)));
       this.refreshTerritories();
       this.graph = undefined;
-      if (this.dependencyMode) void this.ensureGraph();
+      if (this.dependencyMode || this.overlay === "dependents")
+        void this.ensureGraph();
       this.content = undefined;
       this.contentId++;
       this.detail = undefined;

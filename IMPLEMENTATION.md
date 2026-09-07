@@ -10,7 +10,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Unique repository landscapes: stable repository identity seeds distinct terrain and architecture; history playback preserves geography.
 - [x] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
 - [ ] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
-- [ ] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
+- [x] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
 - [ ] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
 - [ ] Shareable views: export screenshots and short replay artifacts, and a reproducible command for the repository, commit, and location.
 
@@ -26,3 +26,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Ruins: deletion/recreation indexing and clickable foundations pass, including exact last-source/deletion-diff revisions and stale-selection guards. All 24 controller, atlas, ruins, and native UI tests pass. `U` toggles foundations.
 
 - Dependency traffic: AST tests exclude comments/string decoys and verify relative imports, extension substitution, index modules, tsconfig aliases, workspace packages, unresolved imports, and incoming edges. Exact Git batch source reads and clickable file routes pass with repository/native UI checks. Coverage is JS/TS literal imports; limits and unresolved imports are visible.
+
+- Activity overlays: historical/windowed churn, exact bytes, graph incoming counts, and dominant author calculations pass fixture tests. `O` cycles modes with a visible scale and selected-file values; ownership uses author names and commit touches rather than line attribution. Native rendering tests pass.

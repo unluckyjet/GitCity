@@ -558,6 +558,40 @@ export function renderScene(
         inWorld(sx(moving.x), sy(moving.y), "▪", "#f9df9b");
       }
   }
+  if (state.overlay !== "off") {
+    const metrics = state.metrics;
+    if (state.atlasMode) {
+      for (const site of geographyFor(state.territories, state.worldStyle.key)
+        .settlements) {
+        const members = site.region.buildings
+          .map((b) => metrics.get(b.path))
+          .filter(Boolean);
+        const strongest = members.sort((a, b) => b!.value - a!.value)[0];
+        if (strongest) {
+          inWorld(sx(site.x) - 1, sy(site.y) + 2, "━", strongest.color);
+          inWorld(sx(site.x), sy(site.y) + 2, "━", strongest.color);
+          inWorld(sx(site.x) + 1, sy(site.y) + 2, "━", strongest.color);
+        }
+      }
+    } else
+      for (const hit of hits) {
+        const metric = metrics.get(hit.building.path);
+        if (!metric) continue;
+        for (
+          let y = Math.max(top, hit.y);
+          y < Math.min(bottom, hit.y + hit.height);
+          y++
+        )
+          for (
+            let x = Math.max(2, hit.x);
+            x < Math.min(width - 2, hit.x + hit.width);
+            x++
+          ) {
+            const c = cells[y * width + x]!;
+            if (c.char !== " " && c.char !== "·") c.fg = metric.color;
+          }
+      }
+  }
   const light = daylight(state.ambientTime, state.lighting);
   for (let y = top; y < bottom; y++)
     for (let x = 2; x < width - 2; x++) {
@@ -843,6 +877,61 @@ export function renderScene(
       },
     });
   }
+  if (state.overlay !== "off") {
+    const labels = {
+      churn: "Touches in last 100 commits",
+      size: "File size in bytes",
+      dependents: "Resolved JS/TS incoming imports",
+      ownership: "Most file touches by author name",
+    };
+    const pw = Math.min(63, width - 8),
+      py = bottom - 4;
+    fill(3, py, pw, 4, palette.panel);
+    text(
+      5,
+      py,
+      `${labels[state.overlay]} · O cycle`,
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
+    if (state.overlay === "ownership") {
+      const owners = [
+        ...new Map(
+          [...state.metrics.values()].map((m) => [
+            m.label.replace(/ \(.*$/, ""),
+            m.color,
+          ]),
+        ).entries(),
+      ].slice(0, 3);
+      let x = 5;
+      for (const [name, color] of owners) {
+        text(x, py + 1, name, color, palette.panel, 18);
+        x += 19;
+      }
+    } else {
+      text(5, py + 1, "Low", "#99cab8", palette.panel);
+      text(17, py + 1, "Medium", "#edc479", palette.panel);
+      text(32, py + 1, "High", "#f18b77", palette.panel);
+    }
+    const detail = state.selected
+      ? state.metrics.get(state.selected)?.label
+      : state.atlasMode
+        ? "Settlement color = highest file value"
+        : "Select a building for its exact value";
+    text(
+      5,
+      py + 2,
+      state.overlay === "dependents" && !state.graph
+        ? state.graphLoading
+          ? "Analyzing imports…"
+          : "Import analysis unavailable"
+        : (detail ?? ""),
+      palette.ink,
+      palette.panel,
+      pw - 4,
+    );
+  }
   if (state.dependencyMode) {
     const pw = Math.min(46, width - 8),
       rows = state.connections.slice(
@@ -1090,7 +1179,7 @@ export function renderScene(
       "/               Search files and folders; Enter to fly",
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
-      "P               Toggle real import routes",
+      "P / O           Import routes / activity overlays",
       "M / N           Pause ambient life / change lighting",
       "U               Show / hide deleted foundations",
       "WASD / arrows   Pan the view",
