@@ -318,6 +318,13 @@ export function formatCityJson(
   }));
   const commit = repository.commits[index] ?? null;
   return {
+    schemaVersion: 1,
+    type: "gitcity.city",
+    encoding: {
+      history: "first-parent",
+      height: "log2 of file bytes, clamped 2-12 cells",
+      width: "path hash, 5-9 cells",
+    },
     name: repository.name,
     commitIndex: index,
     totalCommits: repository.commits.length,

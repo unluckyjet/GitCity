@@ -8,6 +8,8 @@ Files become houses and towers. Folders form settlements across a landscape of c
 
 Git City is a **TypeScript + OpenTUI terminal application**. Give it any public GitHub repository as `owner/repo`; it downloads the repository automatically, without a GitHub token or a manual checkout.
 
+This maps a git *tree*. Files are buildings. It is not [thegitcity.com](https://www.thegitcity.com/), which turns GitHub *users* into buildings in a 3D social city.
+
 ![React rendered as an explorable landscape](docs/images/atlas.png)
 
 ![Zooming into individual files and streets](docs/images/streets.png)

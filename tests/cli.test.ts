@@ -142,6 +142,9 @@ test("headless JSON includes real files, neighborhoods, coordinates, and a comma
     ],
   } as unknown as Repository;
   const payload = formatCityJson(repo, 0, files);
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.type, "gitcity.city");
+  assert.equal(payload.encoding.history, "first-parent");
   assert.equal(payload.name, "owner/city");
   assert.equal(payload.commitIndex, 0);
   assert.equal(payload.totalCommits, 1);
