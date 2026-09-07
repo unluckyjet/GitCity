@@ -82,6 +82,7 @@ The first frame is the actual first committed tree. It is initially viewed close
 | Click minimap                    | Recenter the active map                                               |
 | [ / ]                            | Select and frame the previous / next building                         |
 | Tab                              | Toggle the inspector                                                  |
+| M / N                            | Freeze ambient animation / cycle automatic, day, and night lighting   |
 | Space                            | Play / pause; restart from the beginning at HEAD                      |
 | T                                | Toggle Explore / History arrow controls                               |
 | Left / right in History mode     | Previous / next exact commit                                          |
@@ -93,6 +94,8 @@ The first frame is the actual first committed tree. It is initially viewed close
 | Q / Ctrl+C                       | Quit                                                                  |
 
 The inspector shows the file path, detected language, size, exact text line count, historical commit count, contributor count, and last-change date. Binary files display `binary` for lines. Source and diff previews read committed Git objects, cap output at 64 KiB / 600 lines, and never execute repository code. Diffs compare the selected commit to its first parent; unchanged files show no diff. The GitHub action opens your browser only when requested and requires a GitHub remote.
+
+The landscape has subtle road traffic, river boats, workshop smoke, moving cloud shadows, and a two-minute day/night cycle. Press **M** to freeze ambient animation or set `GITCITY_REDUCED_MOTION=1` before launching. Press **N** to keep day or night lighting. Ambient time is independent of commit playback.
 
 ## Repository inputs and options
 

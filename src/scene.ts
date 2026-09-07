@@ -1,3 +1,4 @@
+import { ambientParticles, daylight, cloudShade } from "./ambient.ts";
 import { architectureFor, paintArchitecture } from "./architecture.ts";
 import { paintLandscape, paintNeighborhood } from "./landscape.ts";
 import { geographyFor } from "./geography.ts";
@@ -357,9 +358,13 @@ export function renderScene(
           for (let xx = 1; xx < bw; xx += Math.max(2, Math.round(2 * zoom))) {
             const lit =
               ((seed + xx * 17 + (yy - roof) * 31) % 101) / 100 <
-              activity * 0.7 + 0.12;
+              activity * 0.7 +
+                0.12 +
+                (1 - daylight(state.ambientTime, state.lighting)) * 0.7;
             const shimmer =
-              recentlyEdited && Math.floor(frame / 8) % 3 === 0 ? 1 : 0.9;
+              state.ambient && recentlyEdited && Math.floor(frame / 8) % 3 === 0
+                ? 1
+                : 0.9;
             inWorld(
               x + xx,
               yy,
@@ -449,6 +454,25 @@ export function renderScene(
           inWorld(xx, yy, "░", mix("#ef9a90", fade * 0.55));
     }
   }
+  const light = daylight(state.ambientTime, state.lighting);
+  for (let y = top; y < bottom; y++)
+    for (let x = 2; x < width - 2; x++) {
+      const cell = cells[y * width + x]!;
+      const shade =
+        light *
+        cloudShade(
+          cx + (x - 2) / zoom,
+          cy + (y - top) / zoom,
+          state.ambientTime,
+        );
+      cell.bg = mix(cell.bg, shade);
+      // Warm windows and lamps retain their glow as surrounding materials darken.
+      const luminous =
+        ["▪", "•", "◉"].includes(cell.char) && cell.fg !== palette.muted;
+      cell.fg = mix(cell.fg, luminous ? Math.max(0.83, shade) : shade);
+    }
+  for (const particle of ambientParticles(state))
+    inWorld(sx(particle.x), sy(particle.y), particle.char, particle.color);
   text(
     3,
     4,
@@ -883,6 +907,7 @@ export function renderScene(
       "/               Search files and folders; Enter to fly",
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
+      "M / N           Pause ambient life / change lighting",
       "WASD / arrows   Pan the view",
       "Click / Enter   Zoom in / inspect files",
       "[ / ]           Previous / next file",

@@ -229,6 +229,14 @@ export function handleKey(
     state.onChange();
     return;
   }
+  if (name === "m") {
+    state.toggleAmbient();
+    return;
+  }
+  if (name === "n") {
+    state.cycleLighting();
+    return;
+  }
   if (name === "q" || (key.ctrl && name === "c")) {
     quit();
     return;

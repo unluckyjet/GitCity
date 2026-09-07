@@ -60,6 +60,10 @@ export class CityController {
   activity = "";
   hovered = "";
   clock = 0;
+  ambient = process.env.GITCITY_REDUCED_MOTION !== "1";
+  ambientTime = 0;
+  lighting: "auto" | "day" | "night" = "auto";
+  private ambientTick: number | undefined;
   transitions = new Map<
     string,
     { building: Building; kind: "add" | "edit" | "delete"; start: number }
@@ -238,6 +242,9 @@ export class CityController {
 
   tick(now: number) {
     if (this.closed) return;
+    if (this.ambient && this.ambientTick !== undefined)
+      this.ambientTime += Math.max(0, Math.min(250, now - this.ambientTick));
+    this.ambientTick = now;
     const hadTransitions = this.transitions.size > 0;
     this.clock = now;
     for (const [path, change] of this.transitions)
@@ -265,7 +272,8 @@ export class CityController {
         Math.abs(this.zoom - this.zoomTarget) > 0.0001 ||
         Math.abs(this.camera.x - this.cameraTarget.x) > 0.001 ||
         Math.abs(this.camera.y - this.cameraTarget.y) > 0.001 ||
-        hadTransitions
+        hadTransitions ||
+        this.ambient
       )
         this.onChange();
       return;
@@ -290,6 +298,19 @@ export class CityController {
     void this.seek(Math.floor(this.playbackCursor));
   }
 
+  toggleAmbient() {
+    this.ambient = !this.ambient;
+    this.onChange();
+  }
+  cycleLighting() {
+    this.lighting =
+      this.lighting === "auto"
+        ? "day"
+        : this.lighting === "day"
+          ? "night"
+          : "auto";
+    this.onChange();
+  }
   stopPlayback() {
     this.playing = false;
     this.playbackIntent = false;
