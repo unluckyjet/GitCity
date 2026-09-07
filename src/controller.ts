@@ -1,3 +1,4 @@
+import { WorldMap } from "./world.ts";
 import {
   createTour,
   type TourKind,
@@ -10,7 +11,6 @@ import {
 import { analyzeDependencies, type DependencyGraph } from "./dependencies.ts";
 import { RuinIndex, type Ruin } from "./ruins.ts";
 import { styleFor, type WorldStyle } from "./world-style.ts";
-import { geographyFor } from "./geography.ts";
 import {
   AtlasIndex,
   inScope,
@@ -36,6 +36,14 @@ export class CityController {
   readonly repository: Repository;
   readonly worldStyle: WorldStyle;
   readonly layout: CityLayout;
+  readonly world: WorldMap;
+  private rootTerritories: Territory[] = [];
+  get geography() {
+    return this.world.geography(this.territories);
+  }
+  get worldGeography() {
+    return this.world.geography(this.rootTerritories);
+  }
   city: City = { districts: [], buildings: [], width: 0, height: 0 };
   index = 0;
   requestedIndex = 0;
@@ -178,7 +186,11 @@ export class CityController {
       Math.min(this.tour.stops.length - 1, this.tour.index + delta),
     );
     this.tour.nextAt = this.clock + 8000;
+    const camera = { ...this.camera },
+      zoom = this.zoom;
     this.visitFile(this.tour.stops[this.tour.index]!.path);
+    this.camera = camera;
+    this.zoom = zoom;
     this.panel = false;
     this.onChange();
   }
@@ -302,7 +314,6 @@ export class CityController {
     string,
     { building: Building; kind: "add" | "edit" | "delete"; start: number }
   >();
-  private scopedLayouts = new Map<string, CityLayout>();
   private scopedView: { key: string; source: City; city: City } | undefined;
   private contentId = 0;
   private navigation: {
@@ -335,6 +346,11 @@ export class CityController {
           .filter((change) => change.status !== "deleted")
           .map((change) => change.path),
       ),
+    );
+    this.world = new WorldMap(
+      this.layout,
+      repository.allPaths,
+      this.worldStyle.key,
     );
     this.speed = options.speed;
     this.timelineMode = options.history;
@@ -512,6 +528,7 @@ export class CityController {
       this.cameraTarget.y + this.viewport.height / (2 * this.zoomTarget);
     const easing = this.autoCamera ? 0.14 : 0.35;
     this.zoom += (this.zoomTarget - this.zoom) * easing;
+    this.syncLod();
     this.camera = {
       x:
         centerX +
@@ -600,22 +617,6 @@ export class CityController {
     if (!Number.isFinite(factor) || factor <= 0) return;
     this.stopPlayback();
     this.autoCamera = false;
-    if (
-      this.atlasMode &&
-      factor > 1 &&
-      this.zoom > this.atlasFitZoom() * 1.65
-    ) {
-      const wx = this.camera.x + x / this.zoom,
-        wy = this.camera.y + y / this.zoom;
-      const region = geographyFor(this.territories, this.worldStyle.key).pick(
-        wx,
-        wy,
-      )?.region;
-      if (region) {
-        this.enter(region.path, region.direct);
-        return;
-      }
-    }
     const worldX = this.camera.x + x / this.zoom;
     const worldY = this.camera.y + y / this.zoom;
     this.zoom = this.zoomTarget = Math.max(
@@ -626,25 +627,7 @@ export class CityController {
       x: worldX - x / this.zoom,
       y: worldY - y / this.zoom,
     };
-    if (
-      factor < 1 &&
-      this.atlasMode &&
-      this.zoom < this.atlasFitZoom() * 0.65 &&
-      (this.scope || this.direct)
-    ) {
-      this.back();
-      return;
-    }
-    if (
-      factor < 1 &&
-      !this.atlasMode &&
-      this.zoom < 0.25 &&
-      this.atlas.hasChildren(this.scope) &&
-      !this.direct
-    ) {
-      this.enter(this.scope);
-      return;
-    }
+    this.syncLod();
     this.onChange();
   }
 
@@ -676,6 +659,7 @@ export class CityController {
   settleCamera() {
     this.camera = { ...this.cameraTarget };
     this.zoom = this.zoomTarget;
+    this.syncLod();
   }
 
   private fitBuildings(
@@ -820,15 +804,11 @@ export class CityController {
     const key = JSON.stringify([this.scope, this.direct]);
     if (this.ruinView?.key === key && this.ruinView.source === this.ruins)
       return this.ruinView.buildings;
-    const files = this.ruins
-      .filter((r) => inScope(r.path, this.scope, this.direct))
-      .map((r) => r.file);
-    let layout = this.layout;
-    if (this.scope || this.direct) {
-      void this.visibleCity;
-      layout = this.scopedLayouts.get(key)!;
-    }
-    const buildings = layout.build(files).buildings;
+    const buildings = this.layout.build(
+      this.ruins
+        .filter((r) => inScope(r.path, this.scope, this.direct))
+        .map((r) => r.file),
+    ).buildings;
     this.ruinView = { key, source: this.ruins, buildings };
     return buildings;
   }
@@ -845,22 +825,20 @@ export class CityController {
     const key = JSON.stringify([this.scope, this.direct]);
     if (this.scopedView?.key === key && this.scopedView.source === this.city)
       return this.scopedView.city;
-    let layout = this.scopedLayouts.get(key);
-    if (!layout) {
-      layout = createCityLayout(
-        this.repository.allPaths.filter((p) =>
-          inScope(p, this.scope, this.direct),
-        ),
-      );
-      this.scopedLayouts.set(key, layout);
-      if (this.scopedLayouts.size > 12)
-        this.scopedLayouts.delete(this.scopedLayouts.keys().next().value!);
-    }
-    const city = layout.build(
-      this.city.buildings.filter((b) =>
-        inScope(b.path, this.scope, this.direct),
-      ),
+    const buildings = this.city.buildings.filter((b) =>
+      inScope(b.path, this.scope, this.direct),
     );
+    const paths = new Set(buildings.map((b) => b.path));
+    const city = {
+      ...this.city,
+      buildings,
+      districts: this.city.districts
+        .map((d) => ({
+          ...d,
+          buildings: d.buildings.filter((b) => paths.has(b.path)),
+        }))
+        .filter((d) => d.buildings.length),
+    };
     this.scopedView = { key, source: this.city, city };
     return city;
   }
@@ -868,23 +846,17 @@ export class CityController {
     return this.visibleCity.buildings;
   }
   projectBuilding(building: Building) {
-    if (!this.scope && !this.direct) return building;
-    void this.visibleCity;
-    return this.scopedLayouts
-      .get(JSON.stringify([this.scope, this.direct]))!
-      .build([building]).buildings[0]!;
+    return building;
   }
   private refreshTerritories() {
     this.territories = this.atlas.territories(this.scope, this.city.buildings);
+    this.rootTerritories = this.scope
+      ? this.atlas.territories("", this.city.buildings)
+      : this.territories;
   }
-  private atlasFitZoom() {
-    return Math.max(
-      0.01,
-      Math.min(
-        (this.viewport.width - 4) / 280,
-        (this.viewport.height - 2) / 58,
-      ),
-    );
+  private syncLod() {
+    this.atlasMode =
+      this.zoom < 0.35 && !this.direct && this.atlas.hasChildren(this.scope);
   }
   private fitScope() {
     this.fitBuildings(
@@ -893,21 +865,9 @@ export class CityController {
         : this.visibleRuinBuildings,
       1.4,
     );
-    if (
-      !this.direct &&
-      this.atlas.hasChildren(this.scope) &&
-      this.visibleBuildings.length > 120 &&
-      this.zoomTarget < 0.35
-    )
-      this.atlasMode = true;
-    if (this.atlasMode) {
-      this.zoomTarget = this.atlasFitZoom();
-      this.cameraTarget = {
-        x: 140 - this.viewport.width / (2 * this.zoomTarget),
-        y: 29 - this.viewport.height / (2 * this.zoomTarget),
-      };
-    }
+    this.syncLod();
   }
+
   enter(scope: string, direct = false, fileView = false) {
     this.stopPlayback();
     this.autoCamera = false;
@@ -932,16 +892,6 @@ export class CityController {
         [];
       this.fitBuildings(street, 1.4);
     }
-    // Coordinate spaces change between atlas and streets; interpolate only
-    // within the destination space, never through unrelated world coordinates.
-    this.settleCamera();
-    this.zoom *= 0.85;
-    this.camera.x -=
-      this.viewport.width / (2 * this.zoom) -
-      this.viewport.width / (2 * this.zoomTarget);
-    this.camera.y -=
-      this.viewport.height / (2 * this.zoom) -
-      this.viewport.height / (2 * this.zoomTarget);
     this.onChange();
   }
   back() {

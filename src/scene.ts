@@ -2,7 +2,6 @@ import { pathPoint } from "./urban.ts";
 import { ambientParticles, daylight, cloudShade } from "./ambient.ts";
 import { architectureFor, paintArchitecture } from "./architecture.ts";
 import { paintLandscape, paintNeighborhood } from "./landscape.ts";
-import { geographyFor } from "./geography.ts";
 import { inScope } from "./atlas.ts";
 import type { CityController } from "./controller.ts";
 import type { Building } from "./types.ts";
@@ -253,6 +252,23 @@ export function renderScene(
     }
   };
 
+  if (state.atlasMode) {
+    paintLandscape(state, {
+      width,
+      top,
+      bottom,
+      actions,
+      put: (x, y, char, fg, bg) =>
+        inWorld(
+          x,
+          y,
+          char,
+          fg,
+          bg ?? cells[Math.round(y) * width + Math.round(x)]?.bg ?? palette.bg,
+        ),
+      text: worldText,
+    });
+  }
   if (!state.atlasMode)
     paintNeighborhood(state, {
       width,
@@ -427,23 +443,7 @@ export function renderScene(
           building: b,
         });
     }
-  if (state.atlasMode) {
-    paintLandscape(state, {
-      width,
-      top,
-      bottom,
-      actions,
-      put: (x, y, char, fg, bg) =>
-        inWorld(
-          x,
-          y,
-          char,
-          fg,
-          bg ?? cells[Math.round(y) * width + Math.round(x)]?.bg ?? palette.bg,
-        ),
-      text: worldText,
-    });
-  } else {
+  if (!state.atlasMode) {
     for (const transition of state.transitions.values()) {
       if (transition.kind !== "delete") continue;
       const b = state.projectBuilding(transition.building);
@@ -467,8 +467,7 @@ export function renderScene(
           .filter((r) => r.buildings.length)
           .map((r) => `${r.path}:${r.direct}`),
       );
-      for (const site of geographyFor(ruins, state.worldStyle.key)
-        .settlements) {
+      for (const site of state.world.geography(ruins).settlements) {
         if (occupied.has(`${site.region.path}:${site.region.direct}`)) continue;
         const x = sx(site.x),
           y = sy(site.y);
@@ -515,10 +514,7 @@ export function renderScene(
   if (state.dependencyMode && state.selected && state.graph) {
     const location = (path: string) => {
       if (state.atlasMode) {
-        const site = geographyFor(
-          state.territories,
-          state.worldStyle.key,
-        ).settlements.find((s) =>
+        const site = state.geography.settlements.find((s) =>
           s.region.buildings.some((b) => b.path === path),
         );
         return site;
@@ -562,7 +558,7 @@ export function renderScene(
   if (state.overlay !== "off") {
     const metrics = state.metrics;
     if (state.atlasMode) {
-      for (const site of geographyFor(state.territories, state.worldStyle.key)
+      for (const site of state.geography
         .settlements) {
         const members = site.region.buildings
           .map((b) => metrics.get(b.path))
@@ -661,7 +657,12 @@ export function renderScene(
       my = bottom - mh;
     fill(mx, my, mw, mh, palette.panel);
     const bounds = state.atlasMode
-      ? { x: 0, y: 0, w: 280, h: 58 }
+      ? {
+          x: state.world.offset.x,
+          y: state.world.offset.y,
+          w: 280 * state.world.scale,
+          h: 58 * state.world.scale,
+        }
       : (() => {
           const bs = state.visibleBuildings;
           let x = Infinity,
@@ -691,7 +692,7 @@ export function renderScene(
       mw - 2,
     );
     const points = state.atlasMode
-      ? geographyFor(state.territories, state.worldStyle.key).settlements.map(
+      ? state.geography.settlements.map(
           (s) => ({
             x: s.x,
             y: s.y,

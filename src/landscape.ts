@@ -2,12 +2,7 @@ import { planNeighborhood, settlementLots } from "./urban.ts";
 import { architectureFor } from "./architecture.ts";
 import type { CityController } from "./controller.ts";
 import type { Action } from "./scene.ts";
-import {
-  noise,
-  geographyFor,
-  type Geography,
-  type Settlement,
-} from "./geography.ts";
+import { noise, type Geography, type Settlement } from "./geography.ts";
 
 interface Painter {
   width: number;
@@ -47,13 +42,17 @@ function terrain(x: number, y: number, geo: Geography) {
   if (n > 0.47 && h > 0.34) return geo.style.hill;
   return n < -0.08 ? geo.style.forest : geo.style.grass;
 }
-export function paintLandscape(state: CityController, p: Painter) {
+export function paintLandscape(
+  state: CityController,
+  p: Painter,
+  settlements = true,
+) {
   const z = state.zoom,
     cx = state.camera.x,
     cy = state.camera.y;
   const sx = (x: number) => Math.round((x - cx) * z) + 2,
     sy = (y: number) => Math.round((y - cy) * z) + p.top;
-  const geo = geographyFor(state.territories, state.worldStyle.key);
+  const geo = state.geography;
   // Half-cell terrain doubles the vertical resolution of the native TUI.
   for (let y = p.top; y < p.bottom; y++) {
     let previous: Settlement | undefined,
@@ -62,7 +61,7 @@ export function paintLandscape(state: CityController, p: Painter) {
       const wx = cx + (x - 2) / z,
         wy = cy + (y - p.top) / z;
       p.put(x, y, "▀", terrain(wx, wy, geo), terrain(wx, wy + 0.5 / z, geo));
-      const site = geo.pick(wx, wy);
+      const site = settlements ? geo.pick(wx, wy) : undefined;
       if (site !== previous) {
         if (previous) {
           const chosen = previous;
@@ -94,8 +93,12 @@ export function paintLandscape(state: CityController, p: Painter) {
   // Fine contour detail stays subordinate to settlement silhouettes.
   for (let gy = 3; gy < 57; gy += 2.7)
     for (let gx = 6; gx < 277; gx += 6.3) {
-      const wx = gx + noise(gx, gy) * 2,
-        wy = gy + noise(gy, gx) * 0.8;
+      const wp = state.world.world(
+          gx + noise(gx, gy) * 2,
+          gy + noise(gy, gx) * 0.8,
+        ),
+        wx = wp.x,
+        wy = wp.y;
       const h = geo.elevation(wx, wy),
         n = geo.noise(wx * 1.5, wy * 1.5),
         x = sx(wx),
@@ -116,7 +119,7 @@ export function paintLandscape(state: CityController, p: Painter) {
         p.put(x, y, "~", "#21475b");
     }
   // Roads are visual connections between folders, not inferred dependencies.
-  for (const road of geo.roads) {
+  for (const road of state.worldGeography.roads) {
     let last: { x: number; y: number } | undefined;
     for (const point of road.points) {
       const x = sx(point.x),
@@ -135,6 +138,14 @@ export function paintLandscape(state: CityController, p: Painter) {
       last = { x, y };
     }
   }
+  if (settlements)
+    for (const b of state.visibleBuildings) {
+      const x = sx(b.x + b.width / 2),
+        y = sy(b.y);
+      if (x >= 2 && x < p.width - 2 && y >= p.top && y < p.bottom)
+        p.put(x, y, "▄", architectureFor(b.path, state.worldStyle).roof);
+    }
+  if (!settlements) return;
   const ordered = [...geo.settlements].sort((a, b) => a.y - b.y || a.x - b.x);
   const largest = [...geo.settlements].sort(
     (a, b) => b.region.buildings.length - a.region.buildings.length,
@@ -144,7 +155,7 @@ export function paintLandscape(state: CityController, p: Painter) {
       y = sy(site.y),
       major = site.size >= (geo.level ? 5 : 8),
       dominant = site === largest;
-    const large = major && z >= 0.33,
+    const large = major && z * state.world.scale >= 0.33,
       seed = hash(site.region.path),
       spread = large ? 5 : 2;
     if (x < -10 || x > p.width + 10 || y < p.top - 6 || y > p.bottom + 6)
@@ -263,7 +274,7 @@ export function paintLandscape(state: CityController, p: Painter) {
             a.y + 2 > b.y,
         ),
     );
-    if (!at || (site.size < 3 && z < 0.6)) continue;
+    if (!at || (site.size < 3 && z * state.world.scale < 0.6)) continue;
     occupied.push({ ...at, w, h: 2 });
     p.text(at.x, at.y, label, site === largest ? "#ffe2ae" : "#dfe6cf", w);
     if (site.size > 7)
@@ -292,17 +303,7 @@ export function paintNeighborhood(state: CityController, p: Painter) {
   const z = state.zoom,
     cx = state.camera.x,
     cy = state.camera.y;
-  for (let y = p.top; y < p.bottom; y++)
-    for (let x = 2; x < p.width - 2; x++) {
-      const wx = cx + (x - 2) / z,
-        wy = cy + (y - p.top) / z,
-        n = noise(wx, wy);
-      const bg = n > 0.35 ? "#314e40" : n < -0.3 ? "#203d36" : "#29463b";
-      p.put(x, y, " ", bg, bg);
-      if (z > 0.55 && Math.floor(wx) % 19 === 0 && Math.floor(wy) % 11 === 0) {
-        p.put(x, y, "♠", "#578366", bg);
-      }
-    }
+  paintLandscape(state, p, false);
   const sx = (x: number) => Math.round((x - cx) * z) + 2,
     sy = (y: number) => Math.round((y - cy) * z) + p.top;
   const plan = planNeighborhood(state.visibleCity);

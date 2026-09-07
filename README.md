@@ -56,7 +56,7 @@ Press **Space** at the latest commit to replay from the beginning, or launch wit
 - New streets are laid out near the older city, in order of first appearance.
 - Existing buildings keep their coordinates as files appear, grow, or disappear.
 - Replay opens close to the first street, then the camera continuously fits the **currently occupied city**, pulling back as it grows. Future files do not determine the early camera frame.
-- Scroll the **mouse wheel** to zoom toward the pointer, or use **+ / −** to zoom around the viewport center.
+- Scroll the **mouse wheel** to zoom toward the pointer, or use **+ / −** to zoom around the viewport center. Terrain, rivers, and landmarks stay in the same coordinates as the files; zooming does not jump to a second map.
 - Large repositories become a landscape with coastlines, forests, mountain ranges, a river, bridges, and settlements connected by roads. Larger settlements have denser buildings and a prominent central landmark. Labels use real repository names; direct files use the repository name at the top level and `./` in nested views. Click a region to enter it. Click breadcrumbs or press Esc to return. Only occupied settlements appear. Their positions stay tied to the complete folder history. Hover reveals full names and file counts.
 - Inside large flat folders, a single terminal cell can contain several files. **Click that block to zoom into it**, then click an individual building for a compact preview. Press Enter for the inspector. No file identities are discarded by the overview.
 - New buildings rise, edits illuminate windows, and removed buildings fade. A change caption summarizes differences between displayed commits.

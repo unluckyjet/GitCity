@@ -1,5 +1,4 @@
 import type { CityController } from "./controller.ts";
-import { geographyFor } from "./geography.ts";
 import { planNeighborhood, pathPoint, type Point } from "./urban.ts";
 import { architectureFor, tint } from "./architecture.ts";
 export interface Particle extends Point {
@@ -21,7 +20,7 @@ export function ambientParticles(state: CityController): Particle[] {
   const result: Particle[] = [],
     t = state.ambientTime;
   if (state.atlasMode) {
-    const geo = geographyFor(state.territories, state.worldStyle.key);
+    const geo = state.geography;
     geo.roads.slice(0, 16).forEach((road, i) => {
       const point = pathPoint(road.points, t / 30000 + i * 0.19);
       result.push({
@@ -32,7 +31,10 @@ export function ambientParticles(state: CityController): Particle[] {
       });
     });
     for (let i = 0; i < 2; i++) {
-      const y = 7 + ((((t / 65000 + i * 0.45) % 1) + 1) % 1) * 46,
+      const y = state.world.world(
+          0,
+          7 + ((((t / 65000 + i * 0.45) % 1) + 1) % 1) * 46,
+        ).y,
         x = geo.riverCourse(y);
       if (geo.elevation(x, y) > 0.08)
         result.push({ x, y, kind: "boat", char: "▰", color: "#d4e8dd" });

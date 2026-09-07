@@ -69,7 +69,9 @@ test("ambient traffic and smoke move while history is paused; M freezes time and
     Array.from({ length: 20 }, (_, i) => cloudShade(i * 5, 0, 0)),
     Array.from({ length: 20 }, (_, i) => cloudShade(i * 5, 0, 60000)),
   );
-  state.enter("");
+  state.zoomAt(0.05);
+  state.settleCamera();
+  assert.equal(state.atlasMode, true);
   assert.ok(ambientParticles(state).some((p) => p.kind === "boat"));
   state.close();
 });
