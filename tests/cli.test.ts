@@ -124,7 +124,10 @@ test("headless JSON includes real files, neighborhoods, coordinates, and a comma
   assert.equal(payload.totalCommits, 1);
   assert.equal(payload.commit?.hash, "abcdef1234567890");
   assert.equal(payload.commit?.author, "Ada");
-  assert.match(payload.command, /gitcity owner\/city --json/);
+  assert.match(
+    payload.command,
+    /gitcity owner\/city --at abcdef1234567890 --json/,
+  );
   assert.equal(payload.files.length, 2);
   assert.equal(payload.files[0]!.path, "src/a.ts");
   assert.equal(typeof payload.files[0]!.x, "number");
@@ -135,10 +138,20 @@ test("headless JSON includes real files, neighborhoods, coordinates, and a comma
     `${payload.files[0]!.x},${payload.files[0]!.y}`,
     `${payload.files[1]!.x},${payload.files[1]!.y}`,
   );
+  assert.ok(payload.city.width > 0);
+  assert.ok(payload.city.height > 0);
+  const block = payload.districts.find((d) => d.files.includes("src/a.ts"));
+  assert.ok(block);
+  assert.ok(block.label);
+  assert.ok(block.files.includes("src/b.ts"));
   const src = payload.neighborhoods.find((n) => n.path === "src");
   assert.ok(src);
   assert.equal(src.files, 2);
   assert.equal(src.size, 3072);
   assert.deepEqual(src.languages, ["TypeScript"]);
-  assert.ok(src.width > 0);
+  for (const file of payload.files) {
+    assert.ok(src.x <= file.x!);
+    assert.ok(src.x + src.width >= file.x! + file.width!);
+    assert.ok(src.y + src.height >= file.y!);
+  }
 });

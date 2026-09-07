@@ -227,15 +227,30 @@ export function formatSnapshot(
     );
   output.push(
     "",
-    `COMMAND  gitcity ${plain(repository.name)} --snapshot`,
+    `COMMAND  ${reproduceCommand(repository, index, "snapshot")}`,
   );
   return `${output.join("\n")}\n`;
+}
+
+export function reproduceCommand(
+  repository: Repository,
+  index: number,
+  mode: "json" | "snapshot",
+  extra?: { history?: boolean },
+) {
+  const commit = repository.commits[index];
+  const parts = ["gitcity", plain(repository.name)];
+  if (commit?.hash) parts.push("--at", commit.hash);
+  if (extra?.history) parts.push("--history");
+  parts.push(mode === "json" ? "--json" : "--snapshot");
+  return parts.join(" ");
 }
 
 export function formatCityJson(
   repository: Repository,
   index: number,
   files: RepoFile[],
+  extra?: { history?: boolean },
 ) {
   const paths = repository.allPaths?.length
     ? repository.allPaths
@@ -257,10 +272,10 @@ export function formatCityJson(
       files: number;
       size: number;
       languages: string[];
-      x: number;
-      y: number;
-      width: number;
-      height: number;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
     }
   >();
   for (const file of files) {
@@ -270,39 +285,51 @@ export function formatCityJson(
       files: 0,
       size: 0,
       languages: [],
-      x: building?.x ?? 0,
-      y: building?.y ?? 0,
-      width: building?.width ?? 0,
-      height: building?.height ?? 0,
+      left: Infinity,
+      top: Infinity,
+      right: -Infinity,
+      bottom: -Infinity,
     };
     current.files += 1;
     current.size += file.size;
     if (!current.languages.includes(file.language))
       current.languages.push(file.language);
     if (building) {
-      current.x = Math.min(current.x, building.x);
-      current.y = Math.min(current.y, building.y);
-      current.width = Math.max(
-        current.width,
-        building.x + building.width - current.x,
-      );
-      current.height = Math.max(
-        current.height,
-        building.y + building.height - current.y,
-      );
+      current.left = Math.min(current.left, building.x);
+      current.top = Math.min(current.top, building.y - building.height);
+      current.right = Math.max(current.right, building.x + building.width);
+      current.bottom = Math.max(current.bottom, building.y);
     }
     neighborhoods.set(file.directory, current);
   }
-  for (const neighborhood of neighborhoods.values())
-    neighborhood.languages.sort();
+  const neighborhoodList = [...neighborhoods.values()].map((n) => ({
+    path: n.path,
+    files: n.files,
+    size: n.size,
+    languages: [...n.languages].sort(),
+    x: Number.isFinite(n.left) ? n.left : 0,
+    y: Number.isFinite(n.top) ? n.top : 0,
+    width: Number.isFinite(n.right) ? n.right - n.left : 0,
+    height: Number.isFinite(n.bottom) ? n.bottom - n.top : 0,
+  }));
   const commit = repository.commits[index] ?? null;
   return {
     name: repository.name,
     commitIndex: index,
     totalCommits: repository.commits.length,
     commit,
-    command: `gitcity ${plain(repository.name)} --json`,
-    neighborhoods: [...neighborhoods.values()].sort(
+    command: reproduceCommand(repository, index, "json", extra),
+    city: { width: city.width, height: city.height },
+    districts: city.districts.map((district) => ({
+      path: district.path,
+      label: district.label,
+      x: district.x,
+      y: district.y,
+      width: district.width,
+      height: district.height,
+      files: district.buildings.map((b) => b.path),
+    })),
+    neighborhoods: neighborhoodList.sort(
       (a, b) => b.files - a.files || a.path.localeCompare(b.path),
     ),
     files: files.map((file) => {
@@ -369,7 +396,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       const files = await repository.snapshot(index);
       if (options.json) {
         process.stdout.write(
-          `${JSON.stringify(formatCityJson(repository, index, files), null, 2)}\n`,
+          `${JSON.stringify(formatCityJson(repository, index, files, { history: options.history }), null, 2)}\n`,
         );
       } else process.stdout.write(formatSnapshot(repository, index, files));
     } else {
