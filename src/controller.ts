@@ -1,3 +1,4 @@
+import { analyzeDependencies, type DependencyGraph } from "./dependencies.ts";
 import { RuinIndex, type Ruin } from "./ruins.ts";
 import { styleFor, type WorldStyle } from "./world-style.ts";
 import { geographyFor } from "./geography.ts";
@@ -64,6 +65,69 @@ export class CityController {
   contentLoading = false;
   contentScroll = 0;
   onOpenUrl: (url: string) => void = () => {};
+  dependencyMode = false;
+  graph: DependencyGraph | undefined;
+  graphLoading = false;
+  private graphRequests = new Map<number, Promise<DependencyGraph>>();
+  async ensureGraph() {
+    const index = this.index;
+    let request = this.graphRequests.get(index);
+    if (!request) {
+      request = (async () => {
+        if (!this.repository.sources)
+          throw new Error(
+            "Dependency analysis is unavailable for this repository.",
+          );
+        return analyzeDependencies(
+          await this.repository.sources(index),
+          (await this.repository.snapshot(index)).map((f) => f.path),
+        );
+      })();
+      this.graphRequests.set(index, request);
+      if (this.graphRequests.size > 3)
+        this.graphRequests.delete(this.graphRequests.keys().next().value!);
+      request.catch(() => this.graphRequests.delete(index));
+    }
+    this.graphLoading = true;
+    this.onChange();
+    try {
+      const graph = await request;
+      if (!this.closed && index === this.index) this.graph = graph;
+      return graph;
+    } catch (error) {
+      if (!this.closed && index === this.index) this.error = String(error);
+      return undefined;
+    } finally {
+      if (index === this.index) {
+        this.graphLoading = false;
+        this.onChange();
+      }
+    }
+  }
+  toggleDependencies() {
+    this.dependencyMode = !this.dependencyMode;
+    if (this.dependencyMode) void this.ensureGraph();
+    this.onChange();
+  }
+  get connections() {
+    return this.selected && this.graph
+      ? [
+          ...(this.graph.outgoing.get(this.selected) ?? []).map((path) => ({
+            path,
+            direction: "imports",
+          })),
+          ...(this.graph.incoming.get(this.selected) ?? []).map((path) => ({
+            path,
+            direction: "used by",
+          })),
+        ]
+      : [];
+  }
+  visitFile(path: string) {
+    this.enter(parentPath(path), true, true);
+    const b = this.visibleBuildings.find((b) => b.path === path);
+    if (b) this.select(b, true);
+  }
   activity = "";
   hovered = "";
   clock = 0;
@@ -185,6 +249,8 @@ export class CityController {
       }
       this.ruins = this.ruinIndex.at(target, new Set(files.map((f) => f.path)));
       this.refreshTerritories();
+      this.graph = undefined;
+      if (this.dependencyMode) void this.ensureGraph();
       this.content = undefined;
       this.contentId++;
       this.detail = undefined;

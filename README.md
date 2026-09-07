@@ -175,3 +175,5 @@ bin/gitcity.mjs    Installed gitcity executable and runtime selection
 MIT licensed.
 
 Deleted files leave selectable foundations. Click one to inspect its last contents (`V`), deletion diff (`Shift+D`), or surviving GitHub revision (`G`). Press `U` to hide or show ruins.
+
+Press `P` for import routes. Select a file and click an incoming/outgoing link to travel to it. Cyan routes import another file; purple routes lead from callers. Analysis parses JS/TS literal imports, exports, require, and dynamic import, resolving relative paths, index modules, tsconfig aliases, and workspace package main/module paths. It does not execute repository code. External/dynamic or unsupported resolution stays unresolved. Files above 1 MiB and source beyond a 48 MiB analysis budget are skipped and counted.

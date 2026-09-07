@@ -1,3 +1,4 @@
+import { pathPoint } from "./urban.ts";
 import { ambientParticles, daylight, cloudShade } from "./ambient.ts";
 import { architectureFor, paintArchitecture } from "./architecture.ts";
 import { paintLandscape, paintNeighborhood } from "./landscape.ts";
@@ -510,6 +511,53 @@ export function renderScene(
           });
       }
   }
+  if (state.dependencyMode && state.selected && state.graph) {
+    const location = (path: string) => {
+      if (state.atlasMode) {
+        const site = geographyFor(
+          state.territories,
+          state.worldStyle.key,
+        ).settlements.find((s) =>
+          s.region.buildings.some((b) => b.path === path),
+        );
+        return site;
+      }
+      const b = state.visibleBuildings.find((b) => b.path === path);
+      return b ? { x: b.x + b.width / 2, y: b.y + 2 } : undefined;
+    };
+    const from = location(state.selected);
+    if (from)
+      for (const [i, edge] of state.connections.entries()) {
+        const to = location(edge.path);
+        if (!to) continue;
+        const points = [
+          from,
+          { x: from.x, y: from.y + 3 },
+          { x: to.x, y: from.y + 3 },
+          to,
+        ];
+        const count = Math.min(
+          600,
+          Math.ceil(
+            (Math.abs(to.x - from.x) + Math.abs(to.y - from.y)) * zoom * 2,
+          ),
+        );
+        for (let n = 0; n <= count; n++) {
+          const p = pathPoint(points, n / (count + 1));
+          inWorld(
+            sx(p.x),
+            sy(p.y),
+            "·",
+            edge.direction === "imports" ? "#7ee4d2" : "#dba6f0",
+          );
+        }
+        const moving = pathPoint(
+          edge.direction === "imports" ? points : [...points].reverse(),
+          state.ambientTime / 6000 + i * 0.17,
+        );
+        inWorld(sx(moving.x), sy(moving.y), "▪", "#f9df9b");
+      }
+  }
   const light = daylight(state.ambientTime, state.lighting);
   for (let y = top; y < bottom; y++)
     for (let x = 2; x < width - 2; x++) {
@@ -795,6 +843,62 @@ export function renderScene(
       },
     });
   }
+  if (state.dependencyMode) {
+    const pw = Math.min(46, width - 8),
+      rows = state.connections.slice(
+        0,
+        Math.max(1, Math.min(7, worldHeight - 7)),
+      ),
+      py = top;
+    fill(3, py, pw, rows.length + 5, palette.panel);
+    text(
+      5,
+      py + 1,
+      state.graphLoading ? "Reading imports…" : "IMPORT ROUTES · P close",
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
+    text(
+      5,
+      py + 2,
+      state.graph
+        ? `${state.graph.analyzed} JS/TS files · ${state.graph.skipped} skipped`
+        : "Select a file to trace its imports",
+      palette.muted,
+      palette.panel,
+      pw - 4,
+    );
+    rows.forEach((edge, i) => {
+      text(
+        5,
+        py + 3 + i,
+        `${edge.direction === "imports" ? "→" : "←"} ${edge.path}`,
+        edge.direction === "imports" ? "#7ee4d2" : "#dba6f0",
+        palette.panel,
+        pw - 4,
+      );
+      actions.push({
+        x: 3,
+        y: py + 3 + i,
+        width: pw,
+        height: 1,
+        label: `${edge.direction} ${edge.path}`,
+        run: () => state.visitFile(edge.path),
+      });
+    });
+    const unresolved = state.selected
+      ? (state.graph?.unresolved.get(state.selected)?.length ?? 0)
+      : 0;
+    text(
+      5,
+      py + rows.length + 3,
+      `${unresolved} external/unresolved · ${state.connections.length} routes`,
+      palette.muted,
+      palette.panel,
+      pw - 4,
+    );
+  }
   if (state.panel) {
     const pw = Math.min(state.inspectorTab === "details" ? 42 : 82, width - 6),
       ph =
@@ -986,6 +1090,7 @@ export function renderScene(
       "/               Search files and folders; Enter to fly",
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
+      "P               Toggle real import routes",
       "M / N           Pause ambient life / change lighting",
       "U               Show / hide deleted foundations",
       "WASD / arrows   Pan the view",

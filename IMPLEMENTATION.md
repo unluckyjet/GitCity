@@ -6,7 +6,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Architectural identity: distinguish documentation, build tooling, UI, and other files through silhouettes/materials; related folders share a style.
 - [ ] Continuous zoom: retain spatially aligned terrain and landmarks while revealing settlements, streets, and files; avoid unrelated coordinate resets.
 - [x] Ambient life: road traffic, chimney smoke, boats, cloud shadows, and a day/night lighting cycle, with a pause/reduced-motion control.
-- [ ] Dependency traffic: resolve actual repository imports; select files to see their dependency routes and animated traffic.
+- [x] Dependency traffic: resolve actual repository imports; select files to see their dependency routes and animated traffic.
 - [x] Unique repository landscapes: stable repository identity seeds distinct terrain and architecture; history playback preserves geography.
 - [x] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
 - [ ] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
@@ -24,3 +24,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Ambient life: tests verify paused-history traffic/smoke movement, boat generation, frozen simulation time, day/night rendering, and moving cloud shade. Native React captures retain exact character alignment. `M` freezes ambient time; `N` cycles lighting; `GITCITY_REDUCED_MOTION=1` starts frozen.
 
 - Ruins: deletion/recreation indexing and clickable foundations pass, including exact last-source/deletion-diff revisions and stale-selection guards. All 24 controller, atlas, ruins, and native UI tests pass. `U` toggles foundations.
+
+- Dependency traffic: AST tests exclude comments/string decoys and verify relative imports, extension substitution, index modules, tsconfig aliases, workspace packages, unresolved imports, and incoming edges. Exact Git batch source reads and clickable file routes pass with repository/native UI checks. Coverage is JS/TS literal imports; limits and unresolved imports are visible.

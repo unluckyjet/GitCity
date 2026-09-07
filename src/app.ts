@@ -229,6 +229,10 @@ export function handleKey(
     state.onChange();
     return;
   }
+  if (name === "p") {
+    state.toggleDependencies();
+    return;
+  }
   if (name === "u") {
     state.toggleRuins();
     return;

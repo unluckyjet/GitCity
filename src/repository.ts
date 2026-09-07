@@ -192,6 +192,7 @@ async function git(
   args: string[],
   signal?: AbortSignal,
   consume?: (chunk: Buffer) => void,
+  input?: string,
 ): Promise<Buffer> {
   if (signal?.aborted) throw abortError();
   return await new Promise((resolveResult, reject) => {
@@ -213,9 +214,13 @@ async function git(
     }
     const child = spawn("git", ["--no-pager", "-C", cwd, ...args], {
       env,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
       windowsHide: true,
     });
+    if (input !== undefined) {
+      child.stdin?.on("error", () => {});
+      child.stdin?.end(input);
+    }
     const chunks: Buffer[] = [];
     let total = 0;
     let stderr = "";
@@ -226,7 +231,7 @@ async function git(
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) abort();
-    child.stdout.on("data", (chunk: Buffer) => {
+    child.stdout!.on("data", (chunk: Buffer) => {
       if (failure) return;
       try {
         if (consume) consume(chunk);
@@ -243,7 +248,7 @@ async function git(
         child.kill("SIGTERM");
       }
     });
-    child.stderr.on("data", (chunk: Buffer) => {
+    child.stderr!.on("data", (chunk: Buffer) => {
       if (stderr.length < 16_384)
         stderr += chunk.toString("utf8").slice(0, 16_384 - stderr.length);
     });
@@ -707,6 +712,48 @@ export async function loadRepository(
       githubUrl,
       commits: history.commits,
       allPaths: [...history.paths.keys()].sort(),
+      async sources(index) {
+        const snapshot = await getSnapshot(index),
+          selected: RepoFile[] = [],
+          skipped: string[] = [];
+        let total = 0;
+        for (const file of snapshot.files) {
+          if (
+            !/\.[cm]?[jt]sx?$|(?:^|\/)(?:package|tsconfig|jsconfig)\.json$/.test(
+              file.path,
+            )
+          )
+            continue;
+          if (file.size > 1024 * 1024 || total + file.size > 48 * 1024 * 1024) {
+            skipped.push(file.path);
+            continue;
+          }
+          total += file.size;
+          selected.push(file);
+        }
+        const texts = new Map<string, string>();
+        if (!selected.length) return { texts, skipped };
+        const bytes = await git(
+          root,
+          ["cat-file", "--batch"],
+          options.signal,
+          undefined,
+          selected.map((f) => snapshot.blobs.get(f.path)).join("\n") + "\n",
+        );
+        let offset = 0;
+        for (const file of selected) {
+          const end = bytes.indexOf(10, offset),
+            header = bytes.toString("utf8", offset, end).split(" "),
+            size = Number(header[2]);
+          if (end < 0 || !Number.isFinite(size) || header[1] !== "blob")
+            throw new Error("Incomplete source batch from Git.");
+          const blob = bytes.subarray(end + 1, end + 1 + size);
+          offset = end + size + 2;
+          if (blob.includes(0)) skipped.push(file.path);
+          else texts.set(file.path, blob.toString("utf8"));
+        }
+        return { texts, skipped };
+      },
       async snapshot(index) {
         return (await getSnapshot(index)).files;
       },

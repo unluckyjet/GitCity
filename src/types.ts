@@ -31,6 +31,7 @@ export interface Repository {
   commits: Commit[];
   allPaths: string[];
   githubUrl?: string;
+  sources?(index: number): Promise<SourceSnapshot>;
   snapshot(index: number): Promise<RepoFile[]>;
   inspect(index: number, path: string): Promise<RepoFile | undefined>;
   preview?(index: number, path: string): Promise<FileContent>;
@@ -83,4 +84,9 @@ export interface CityLayout {
 export interface AppOptions {
   history: boolean;
   speed: number;
+}
+
+export interface SourceSnapshot {
+  texts: Map<string, string>;
+  skipped: string[];
 }
