@@ -1,7 +1,6 @@
 import type { CityController } from "./controller.ts";
 import type { Action } from "./scene.ts";
 import {
-  river,
   noise,
   geographyFor,
   type Geography,
@@ -37,14 +36,14 @@ function hash(value: string) {
 }
 function terrain(x: number, y: number, geo: Geography) {
   const h = geo.elevation(x, y),
-    n = noise(x * 1.5, y * 1.5);
-  if (h < -0.08) return ink.deep;
-  if (h < 0.012) return ink.sea;
+    n = geo.noise(x * 1.5, y * 1.5);
+  if (h < -0.08) return geo.style.deep;
+  if (h < 0.012) return geo.style.sea;
   if (h < 0.048) return ink.shallows;
-  if (h < 0.088) return ink.sand;
-  if (river(x, y)) return ink.sea;
-  if (n > 0.47 && h > 0.34) return ink.hill;
-  return n < -0.08 ? ink.forest : ink.grass;
+  if (h < 0.088) return geo.style.sand;
+  if (geo.river(x, y)) return geo.style.sea;
+  if (n > 0.47 && h > 0.34) return geo.style.hill;
+  return n < -0.08 ? geo.style.forest : geo.style.grass;
 }
 export function paintLandscape(state: CityController, p: Painter) {
   const z = state.zoom,
@@ -52,7 +51,7 @@ export function paintLandscape(state: CityController, p: Painter) {
     cy = state.camera.y;
   const sx = (x: number) => Math.round((x - cx) * z) + 2,
     sy = (y: number) => Math.round((y - cy) * z) + p.top;
-  const geo = geographyFor(state.territories);
+  const geo = geographyFor(state.territories, state.worldStyle.key);
   // Half-cell terrain doubles the vertical resolution of the native TUI.
   for (let y = p.top; y < p.bottom; y++) {
     let previous: Settlement | undefined,
@@ -96,12 +95,12 @@ export function paintLandscape(state: CityController, p: Painter) {
       const wx = gx + noise(gx, gy) * 2,
         wy = gy + noise(gy, gx) * 0.8;
       const h = geo.elevation(wx, wy),
-        n = noise(wx * 1.5, wy * 1.5),
+        n = geo.noise(wx * 1.5, wy * 1.5),
         x = sx(wx),
         y = sy(wy);
       if (
         h > 0.13 &&
-        !river(wx, wy) &&
+        !geo.river(wx, wy) &&
         geo.settlements.every((s) => Math.hypot((s.x - wx) / 3, s.y - wy) > 3.2)
       ) {
         if (n > 0.53 && h > 0.37) {
@@ -129,7 +128,7 @@ export function paintLandscape(state: CityController, p: Painter) {
               : (x - last.x) * (y - last.y) > 0
                 ? "╲"
                 : "╱";
-        p.put(x, y, char, river(point.x, point.y) ? "#e0c496" : ink.road);
+        p.put(x, y, char, geo.river(point.x, point.y) ? "#e0c496" : ink.road);
       }
       last = { x, y };
     }
@@ -155,7 +154,7 @@ export function paintLandscape(state: CityController, p: Painter) {
         dist = 1 + Math.sqrt(i) * 0.85;
       const bx = x + Math.round(Math.cos(angle) * dist * (large ? 1.8 : 1)),
         by = y + Math.round(Math.sin(angle) * dist * 0.48);
-      p.put(bx, by - 1, "▄", i % 3 === 0 ? "#d9aa79" : ink.roof);
+      p.put(bx, by - 1, "▄", i % 3 === 0 ? "#d9aa79" : geo.style.roof);
       p.put(bx, by, "▪", i % 2 === 0 ? ink.light : ink.wall);
       p.actions.push({
         x: bx,

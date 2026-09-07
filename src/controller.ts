@@ -1,3 +1,4 @@
+import { styleFor, type WorldStyle } from "./world-style.ts";
 import { geographyFor } from "./geography.ts";
 import {
   AtlasIndex,
@@ -21,6 +22,7 @@ import type {
 /** Owns asynchronous history requests, so a slow frame can never replace a newer seek. */
 export class CityController {
   readonly repository: Repository;
+  readonly worldStyle: WorldStyle;
   readonly layout: CityLayout;
   city: City = { districts: [], buildings: [], width: 0, height: 0 };
   index = 0;
@@ -83,6 +85,7 @@ export class CityController {
 
   constructor(repository: Repository, options: AppOptions) {
     this.repository = repository;
+    this.worldStyle = styleFor(repository.githubUrl ?? repository.name);
     this.atlas = new AtlasIndex(repository.allPaths);
     this.layout = createCityLayout(
       repository.allPaths,
@@ -328,7 +331,10 @@ export class CityController {
     ) {
       const wx = this.camera.x + x / this.zoom,
         wy = this.camera.y + y / this.zoom;
-      const region = geographyFor(this.territories).pick(wx, wy)?.region;
+      const region = geographyFor(this.territories, this.worldStyle.key).pick(
+        wx,
+        wy,
+      )?.region;
       if (region) {
         this.enter(region.path, region.direct);
         return;

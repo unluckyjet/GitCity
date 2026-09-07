@@ -1,3 +1,4 @@
+import { styleFor, type WorldStyle } from "./world-style.ts";
 import type { Territory } from "./atlas.ts";
 
 export interface Settlement {
@@ -42,12 +43,14 @@ export function land(x: number, y: number) {
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot((a.x - b.x) / 3, a.y - b.y);
 }
-const cache = new WeakMap<Territory[], Geography>();
+const cache = new WeakMap<Territory[], Map<string, Geography>>();
 export class Geography {
   readonly level: number;
+  readonly style: WorldStyle;
   readonly settlements: Settlement[];
   readonly roads: Road[] = [];
-  constructor(territories: Territory[]) {
+  constructor(territories: Territory[], identity = "") {
+    this.style = styleFor(identity);
     this.level = Math.max(
       0,
       Math.min(
@@ -66,7 +69,7 @@ export class Geography {
         for (let i = 0; i < 24 && !this.land(x, y); i++) {
           x += (140 - x) * 0.08;
           y += (29 - y) * 0.08;
-          if (river(x, y)) x += 5;
+          if (this.river(x, y)) x += 5;
         }
         return { region, x, y, size: Math.log2(region.buildings.length + 1) };
       });
@@ -109,11 +112,38 @@ export class Geography {
     }
   }
   elevation(x: number, y: number) {
-    const scale = this.level ? 0.55 : 1;
-    return elevation(140 + (x - 140) * scale, 29 + (y - 29) * scale);
+    const scale = this.level ? 0.55 : 1,
+      style = this.style;
+    const nx = ((x - 140) * scale) / style.radiusX,
+      ny = ((y - 29) * scale) / style.radiusY;
+    const angle = Math.atan2(ny, nx),
+      phase = style.phase;
+    const coast =
+      1 +
+      0.12 * Math.sin(angle * 3 + phase) +
+      0.09 * Math.cos(angle * 5 - phase) +
+      0.04 * Math.sin(angle * 9 + phase);
+    return coast - Math.hypot(nx, ny) + this.noise(x, y) * 0.16;
+  }
+  noise(x: number, y: number) {
+    return noise(x + this.style.phase * 3, y - this.style.phase);
+  }
+  riverCourse(y: number) {
+    return (
+      this.style.riverX +
+      Math.sin(y * 0.105 + this.style.phase) * this.style.riverBend +
+      Math.sin(y * 0.31) * 5
+    );
+  }
+  river(x: number, y: number) {
+    return (
+      Math.abs(x - this.riverCourse(y)) < 1.6 + Math.sin(y * 0.08) * 0.45 &&
+      y > 5 &&
+      y < 55
+    );
   }
   land(x: number, y: number) {
-    return this.elevation(x, y) > 0.035 && !river(x, y);
+    return this.elevation(x, y) > 0.035 && !this.river(x, y);
   }
   pick(x: number, y: number): Settlement | undefined {
     if (!this.land(x, y)) return undefined;
@@ -129,11 +159,17 @@ export class Geography {
     return result;
   }
 }
-export function geographyFor(territories: Territory[]) {
-  let value = cache.get(territories);
+export function geographyFor(territories: Territory[], identity = "") {
+  const key = styleFor(identity).key;
+  let worlds = cache.get(territories);
+  if (!worlds) {
+    worlds = new Map();
+    cache.set(territories, worlds);
+  }
+  let value = worlds.get(key);
   if (!value) {
-    value = new Geography(territories);
-    cache.set(territories, value);
+    value = new Geography(territories, key);
+    worlds.set(key, value);
   }
   return value;
 }

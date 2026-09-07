@@ -46,6 +46,8 @@ npm install -g ./gitcity-0.4.0.tgz
 
 This project has not been published to the npm registry. Install from this repository or a locally built tarball.
 
+Each repository has a stable landscape identity: coast, highland, or river terrain with its own coastline, river course, palette, and building materials. GitHub URL and `owner/repo` forms produce the same world; history playback keeps it fixed.
+
 ## Watch the town become a city
 
 Press **Space** at the latest commit to replay from the beginning, or launch with `--history` to start at the first commit.

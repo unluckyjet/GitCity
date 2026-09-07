@@ -524,11 +524,13 @@ export function renderScene(
       mw - 2,
     );
     const points = state.atlasMode
-      ? geographyFor(state.territories).settlements.map((s) => ({
-          x: s.x,
-          y: s.y,
-          color: s.region.color,
-        }))
+      ? geographyFor(state.territories, state.worldStyle.key).settlements.map(
+          (s) => ({
+            x: s.x,
+            y: s.y,
+            color: s.region.color,
+          }),
+        )
       : state.visibleBuildings;
     for (const b of points)
       put(mapX(b.x), mapY(b.y), "·", b.color, palette.panel);
