@@ -122,7 +122,7 @@ Bare `owner/repo` **always means GitHub**, even if a similarly named directory e
 | --focus path       | Start at a file                                     |
 | --view token       | Restore a view yanked with Y                        |
 | --snapshot         | Print a headless summary, then exit                 |
-| --json             | Print the selected commit and file metadata as JSON |
+| --json             | Print commit, files, city coordinates, and neighborhoods as JSON |
 | --help / --version | Usage or package version                            |
 
 Headless modes default to HEAD unless combined with `--history`. Quote glob patterns to prevent shell expansion. Headless commands run on Node.js 20+ without native FFI.

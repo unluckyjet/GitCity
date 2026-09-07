@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createCityLayout } from "./city.ts";
 import type { RepoFile, Repository } from "./types.ts";
 
 const require = createRequire(import.meta.url);
@@ -138,7 +139,7 @@ Options:
   --speed <number>   Playback multiplier, 0.25–32 (default: 1)
   --exclude <glob>   Exclude paths; repeat for multiple patterns
   --snapshot         Print a headless city summary and exit
-  --json             Print a headless repository snapshot as JSON
+  --json             Print commit, files, coordinates, and neighborhoods as JSON
   -h, --help         Show this help
   -v, --version      Print the version
 
@@ -224,7 +225,104 @@ export function formatSnapshot(
     output.push(
       "No visible files at this commit. Try a later commit or adjust exclusions.",
     );
+  output.push(
+    "",
+    `COMMAND  gitcity ${plain(repository.name)} --snapshot`,
+  );
   return `${output.join("\n")}\n`;
+}
+
+export function formatCityJson(
+  repository: Repository,
+  index: number,
+  files: RepoFile[],
+) {
+  const paths = repository.allPaths?.length
+    ? repository.allPaths
+    : files.map((file) => file.path);
+  const layout = createCityLayout(
+    paths,
+    repository.commits.flatMap((commit) =>
+      commit.changes
+        .filter((change) => change.status !== "deleted")
+        .map((change) => change.path),
+    ),
+  );
+  const city = layout.build(files);
+  const placed = new Map(city.buildings.map((b) => [b.path, b]));
+  const neighborhoods = new Map<
+    string,
+    {
+      path: string;
+      files: number;
+      size: number;
+      languages: string[];
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  >();
+  for (const file of files) {
+    const building = placed.get(file.path);
+    const current = neighborhoods.get(file.directory) ?? {
+      path: file.directory || ".",
+      files: 0,
+      size: 0,
+      languages: [],
+      x: building?.x ?? 0,
+      y: building?.y ?? 0,
+      width: building?.width ?? 0,
+      height: building?.height ?? 0,
+    };
+    current.files += 1;
+    current.size += file.size;
+    if (!current.languages.includes(file.language))
+      current.languages.push(file.language);
+    if (building) {
+      current.x = Math.min(current.x, building.x);
+      current.y = Math.min(current.y, building.y);
+      current.width = Math.max(
+        current.width,
+        building.x + building.width - current.x,
+      );
+      current.height = Math.max(
+        current.height,
+        building.y + building.height - current.y,
+      );
+    }
+    neighborhoods.set(file.directory, current);
+  }
+  for (const neighborhood of neighborhoods.values())
+    neighborhood.languages.sort();
+  const commit = repository.commits[index] ?? null;
+  return {
+    name: repository.name,
+    commitIndex: index,
+    totalCommits: repository.commits.length,
+    commit,
+    command: `gitcity ${plain(repository.name)} --json`,
+    neighborhoods: [...neighborhoods.values()].sort(
+      (a, b) => b.files - a.files || a.path.localeCompare(b.path),
+    ),
+    files: files.map((file) => {
+      const building = placed.get(file.path);
+      return {
+        path: file.path,
+        directory: file.directory,
+        language: file.language,
+        size: file.size,
+        commits: file.commits,
+        contributors: file.contributors,
+        createdAt: file.createdAt,
+        lastModified: file.lastModified,
+        x: building?.x ?? null,
+        y: building?.y ?? null,
+        width: building?.width ?? null,
+        height: building?.height ?? null,
+      };
+    }),
+  };
 }
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
@@ -271,7 +369,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       const files = await repository.snapshot(index);
       if (options.json) {
         process.stdout.write(
-          `${JSON.stringify({ name: repository.name, commitIndex: index, totalCommits: repository.commits.length, commit: repository.commits[index] ?? null, files }, null, 2)}\n`,
+          `${JSON.stringify(formatCityJson(repository, index, files), null, 2)}\n`,
         );
       } else process.stdout.write(formatSnapshot(repository, index, files));
     } else {

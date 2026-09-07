@@ -687,7 +687,7 @@ export function renderScene(
       mx + 1,
       my,
       "MAP · click to move",
-      palette.muted,
+      palette.gold,
       palette.panel,
       mw - 2,
     );
@@ -992,8 +992,11 @@ export function renderScene(
       text(17, py + 1, "Medium", "#edc479", palette.panel);
       text(32, py + 1, "High", "#f18b77", palette.panel);
     }
-    const detail = state.selected
-      ? state.metrics.get(state.selected)?.label
+    const selectedMetric = state.selected
+      ? state.metrics.get(state.selected)
+      : undefined;
+    const detail = selectedMetric
+      ? `${state.selected} · ${selectedMetric.label}`
       : state.atlasMode
         ? "Settlement color = highest file value"
         : "Select a building for its exact value";
@@ -1384,10 +1387,34 @@ export function renderScene(
     );
   }
   if (state.help) {
+    const help = [
+      "Wheel / + / -   Zoom toward the pointer / center",
+      "Y               Yank a shareable view and command",
+      "Click / Enter   Zoom in / inspect files",
+      "WASD / arrows   Pan the view",
+      "/               Search files and folders; Enter to fly",
+      "Tab             Toggle the inspector",
+      "R               Fit view and restore automatic zoom",
+      "Space           Play / pause; restart at the end",
+      "T               Switch explore / timeline controls",
+      "← / →           Previous / next commit in timeline",
+      "P / O           Import routes / activity overlays",
+      "J               Guided tours; [ ] stops, Space pause",
+      "B               Compare commits/branches; arrows slide",
+      "V / D / G       Source / commit diff / open GitHub",
+      "M / N           Pause ambient / lighting",
+      "U               Show / hide deleted foundations",
+      "[ / ]           Previous / next file",
+      "Home / End      First / latest commit",
+      ", / .           Slower / faster history playback",
+      "Esc / ?         Close panel / help",
+      "Q / Ctrl+C      Quit",
+      "Height = file size. Color = language.",
+    ];
     const pw = Math.min(67, width - 8),
-      ph = Math.min(21, height - 4),
+      ph = Math.min(help.length + 4, height - 2),
       px = Math.floor((width - pw) / 2),
-      py = Math.floor((height - ph) / 2);
+      py = Math.max(1, Math.floor((height - ph) / 2));
     fill(px, py, pw, ph, palette.panel);
     text(
       px + 3,
@@ -1397,32 +1424,6 @@ export function renderScene(
       palette.panel,
       pw - 6,
     );
-    const help = [
-      "/               Search files and folders; Enter to fly",
-      "V / D / G       Source / commit diff / open GitHub",
-      "Esc / path      Return to parent / repository",
-      "B               Compare commits/branches; arrows slide",
-      "J               Guided tours; [ ] stops, Space pause",
-      "P / O           Import routes / activity overlays",
-      "M / N           Pause ambient life / change lighting",
-      "U               Show / hide deleted foundations",
-      "WASD / arrows   Pan the view",
-      "Click / Enter   Zoom in / inspect files",
-      "[ / ]           Previous / next file",
-      "Tab             Toggle the inspector",
-      "Space           Play / pause; restart at the end",
-      "T               Switch explore / timeline controls",
-      "← / →           Previous / next commit in timeline",
-      "Home / End      First / latest commit",
-      "Wheel / + / -   Zoom toward the pointer / center",
-      "R               Fit view and restore automatic zoom",
-      "Y               Yank a shareable view and command",
-      "Esc / ?         Close panel / help",
-      "Q / Ctrl+C      Quit",
-      ", / .           Slower / faster history playback",
-      "Height = file size. Color = language.",
-      "Lit windows = recent edits. Rooftop lights = authors.",
-    ];
     help
       .slice(0, ph - 4)
       .forEach((row, i) =>

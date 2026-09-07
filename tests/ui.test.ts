@@ -146,3 +146,38 @@ test("scene clips to each terminal size and sanitizes Git control characters", a
   }
   state.close();
 });
+
+test("help lists yank and zoom; overlay legend names the selected file and its value", async () => {
+  const state = new CityController(repository(), { history: false, speed: 1 });
+  await state.init();
+  state.help = true;
+  const help = renderScene(state, 100, 42)
+    .cells.map((c) => c.char)
+    .join("");
+  assert.match(help, /Yank a shareable view/);
+  assert.match(help, /Zoom toward the pointer/);
+  state.help = false;
+  handleKey(
+    state,
+    { name: "o", sequence: "o", ctrl: false, shift: false },
+    () => {},
+  );
+  const house = state.city.buildings[0]!;
+  state.select(house, false);
+  const legend = renderScene(state, 100, 42)
+    .cells.map((c) => c.char)
+    .join("");
+  assert.match(
+    legend,
+    new RegExp(house.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
+  assert.match(legend, /touches \/ last 100 commits|bytes/);
+  state.autoCamera = false;
+  state.selected = undefined;
+  state.panel = false;
+  const map = renderScene(state, 100, 42)
+    .cells.map((c) => c.char)
+    .join("");
+  assert.match(map, /MAP · click to move/);
+  state.close();
+});

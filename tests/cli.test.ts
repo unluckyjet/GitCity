@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatSnapshot, parseArgs } from "../src/cli.ts";
+import { formatCityJson, formatSnapshot, parseArgs } from "../src/cli.ts";
 import type { Repository } from "../src/types.ts";
 
 test("CLI accepts the documented GitHub form and repeated quoted exclusions", () => {
@@ -77,5 +77,68 @@ test("headless summary groups directories and strips terminal control sequences"
   assert.match(output, /2 buildings · 1 neighborhoods · 1 commits/);
   assert.match(output, /2.0 KB/);
   assert.match(output, /First commit/);
+  assert.match(output, /COMMAND  gitcity tiny/);
   assert.equal(output.includes("\x1b"), false);
+});
+
+test("headless JSON includes real files, neighborhoods, coordinates, and a command", () => {
+  const files = [
+    {
+      path: "src/a.ts",
+      directory: "src",
+      language: "TypeScript",
+      size: 2048,
+      commits: 3,
+      contributors: 2,
+      createdAt: "2020-01-01T00:00:00Z",
+      lastModified: "2026-01-01T00:00:00Z",
+    },
+    {
+      path: "src/b.ts",
+      directory: "src",
+      language: "TypeScript",
+      size: 1024,
+      commits: 1,
+      contributors: 1,
+      createdAt: "2020-01-01T00:00:00Z",
+      lastModified: "2026-01-01T00:00:00Z",
+    },
+  ];
+  const repo = {
+    name: "owner/city",
+    root: "/fixture",
+    allPaths: files.map((f) => f.path),
+    commits: [
+      {
+        hash: "abcdef1234567890",
+        date: "2026-09-06T12:00:00Z",
+        author: "Ada",
+        subject: "Lay the first street",
+        changes: files.map((f) => ({ path: f.path, status: "added" as const })),
+      },
+    ],
+  } as unknown as Repository;
+  const payload = formatCityJson(repo, 0, files);
+  assert.equal(payload.name, "owner/city");
+  assert.equal(payload.commitIndex, 0);
+  assert.equal(payload.totalCommits, 1);
+  assert.equal(payload.commit?.hash, "abcdef1234567890");
+  assert.equal(payload.commit?.author, "Ada");
+  assert.match(payload.command, /gitcity owner\/city --json/);
+  assert.equal(payload.files.length, 2);
+  assert.equal(payload.files[0]!.path, "src/a.ts");
+  assert.equal(typeof payload.files[0]!.x, "number");
+  assert.equal(typeof payload.files[0]!.y, "number");
+  assert.ok(payload.files[0]!.width! > 0);
+  assert.ok(payload.files[0]!.height! > 0);
+  assert.notEqual(
+    `${payload.files[0]!.x},${payload.files[0]!.y}`,
+    `${payload.files[1]!.x},${payload.files[1]!.y}`,
+  );
+  const src = payload.neighborhoods.find((n) => n.path === "src");
+  assert.ok(src);
+  assert.equal(src.files, 2);
+  assert.equal(src.size, 3072);
+  assert.deepEqual(src.languages, ["TypeScript"]);
+  assert.ok(src.width > 0);
 });
