@@ -1416,6 +1416,7 @@ export function renderScene(
       "Home / End      First / latest commit",
       "Wheel / + / -   Zoom toward the pointer / center",
       "R               Fit view and restore automatic zoom",
+      "Y               Yank a shareable view and command",
       "Esc / ?         Close panel / help",
       "Q / Ctrl+C      Quit",
       ", / .           Slower / faster history playback",
@@ -1432,6 +1433,28 @@ export function renderScene(
           i >= 13 ? palette.muted : palette.ink,
           palette.panel,
           pw - 6,
+        ),
+      );
+    hits.length = 0;
+  }
+  if (state.share) {
+    const lines = state.share.split("\n");
+    const pw = Math.min(78, width - 6);
+    const ph = Math.min(Math.max(9, Math.min(lines.length + 3, 18)), height - 4);
+    const px = Math.floor((width - pw) / 2);
+    const py = Math.floor((height - ph) / 2);
+    fill(px, py, pw, ph, palette.panel);
+    text(px + 2, py + 1, "SHAREABLE VIEW", palette.gold, palette.panel, pw - 4);
+    lines
+      .slice(0, ph - 4)
+      .forEach((row, i) =>
+        text(
+          px + 2,
+          py + 3 + i,
+          row,
+          i === 1 ? palette.gold : palette.ink,
+          palette.panel,
+          pw - 4,
         ),
       );
     hits.length = 0;

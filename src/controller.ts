@@ -1,5 +1,14 @@
 import { WorldMap } from "./world.ts";
 import {
+  decodeView,
+  encodeView,
+  formatScreenshot,
+  formatShareArtifact,
+  shareCommand,
+  type ViewLocation,
+} from "./view.ts";
+import type { Scene } from "./scene.ts";
+import {
   createTour,
   type TourKind,
   type TourStop,
@@ -54,6 +63,7 @@ export class CityController {
   timelineMode = false;
   panel = false;
   help = false;
+  share: string | undefined;
   loading = false;
   error = "";
   camera = { x: 0, y: 0 };
@@ -366,7 +376,52 @@ export class CityController {
     else this.resetCamera(true);
     if (this.initialOptions.compare)
       await this.startComparison(this.initialOptions.compare);
-    if (this.initialOptions.focus) this.visitFile(this.initialOptions.focus);
+    if (this.initialOptions.view) this.applyView(this.initialOptions.view);
+    if (this.initialOptions.focus && !this.selected)
+      this.visitFile(this.initialOptions.focus);
+  }
+
+  captureView(): ViewLocation {
+    return {
+      zoom: this.zoom,
+      x: this.camera.x,
+      y: this.camera.y,
+      scope: this.scope,
+      direct: this.direct,
+      selected: this.selected,
+      at: this.commit?.hash,
+    };
+  }
+
+  applyView(token: string) {
+    const view = decodeView(token);
+    this.stopPlayback();
+    this.autoCamera = false;
+    this.scope = view.scope;
+    this.direct = view.direct;
+    this.refreshTerritories();
+    if (view.selected) {
+      const building =
+        this.visibleBuildings.find((b) => b.path === view.selected) ??
+        this.city.buildings.find((b) => b.path === view.selected);
+      if (building) this.select(building, false);
+      else this.selected = view.selected;
+    }
+    this.zoom = this.zoomTarget = Math.max(0.001, Math.min(4, view.zoom));
+    this.camera = this.cameraTarget = { x: view.x, y: view.y };
+    this.syncLod();
+  }
+
+  yankShare(scene: Scene) {
+    const view = this.captureView();
+    const command = shareCommand(this.repository.name, view);
+    this.share = formatShareArtifact(command, formatScreenshot(scene));
+    this.help = false;
+    return this.share;
+  }
+
+  viewToken() {
+    return encodeView(this.captureView());
   }
 
   get commit() {

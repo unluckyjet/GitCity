@@ -133,7 +133,7 @@ Options:
   --at <ref>         Explore a specific commit or branch
   --compare <A..B>   Compare two commits or branches
   --focus <path>     Start at a file
-  --view <value>     Restore a shared camera view
+  --view <token>     Restore a shared camera view (from Y)
   --history          Open at the first commit, ready to replay
   --speed <number>   Playback multiplier, 0.25–32 (default: 1)
   --exclude <glob>   Exclude paths; repeat for multiple patterns

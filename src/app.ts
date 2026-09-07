@@ -313,8 +313,16 @@ export function handleKey(
     state.onChange();
     return;
   }
+  if (name === "y") {
+    const width = state.viewport.width + 4;
+    const height = state.viewport.height + 14;
+    state.yankShare(renderScene(state, width, height));
+    state.onChange();
+    return;
+  }
   if (name === "escape") {
-    if (state.help) state.help = false;
+    if (state.share) state.share = undefined;
+    else if (state.help) state.help = false;
     else if (state.panel) state.panel = false;
     else {
       state.timelineMode = false;

@@ -12,7 +12,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
 - [x] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
 - [x] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
-- [ ] Shareable views: export screenshots and short replay artifacts, and a reproducible command for the repository, commit, and location.
+- [x] Shareable views: export screenshots and short replay artifacts, and a reproducible command for the repository, commit, and location.
 
 Completion requires native OpenTUI interaction and visual checks on small fixtures and React, relevant automated coverage, updated documentation, an updated local installation, and all feature commits present on GitHub. A checked box is not sufficient evidence on its own; validation results are recorded alongside completed features.
 
@@ -34,3 +34,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Comparison: real two-branch fixture verifies exact blobs, equal-size modifications, additions/deletions, last-source and two-revision diffs, slider endpoints, exit restoration, and `--at` branch history. `B` accepts A..B; left/right or clicking the slider reveals either revision. Missing public branch refs are fetched into the temporary clone.
 
 - Continuous zoom: `WorldMap` keeps city lots, terrain, settlements, and the minimap in one affine space. `tests/world.test.ts` checks invertibility, terrain sampling, and that entering a folder or changing zoom does not move surviving buildings or settlement anchors. Pointer-stable `zoomAt` still holds. Landscape LOD is `zoom < 0.35`, not a coordinate reset.
+
+- Shareable views: `Y` yanks a text screenshot plus `gitcity owner/repo --at HASH --focus path --view TOKEN`. `tests/view.test.ts` round-trips the token, restores camera/scope/selection through `CityController` init, and builds a two-commit replay artifact from real `renderScene` frames.

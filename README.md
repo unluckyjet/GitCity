@@ -90,6 +90,7 @@ The first frame is the actual first committed tree. It is initially viewed close
 | Home / End                       | First / latest commit                                                 |
 | R / FIT button                   | Fit the current territory and restore automatic framing               |
 | Esc                              | Close overlay or selection, then return to the previous territory     |
+| Y                                | Yank a shareable view: command plus text screenshot                   |
 | ?                                | Help                                                                  |
 | Q / Ctrl+C                       | Quit                                                                  |
 
@@ -117,6 +118,9 @@ Bare `owner/repo` **always means GitHub**, even if a similarly named directory e
 | --history          | Start at the first available commit                 |
 | --speed number     | Playback multiplier, 0.25–32; default 1             |
 | --exclude glob     | Exclude paths throughout history; repeat as needed  |
+| --at ref           | Explore a specific commit or branch                 |
+| --focus path       | Start at a file                                     |
+| --view token       | Restore a view yanked with Y                        |
 | --snapshot         | Print a headless summary, then exit                 |
 | --json             | Print the selected commit and file metadata as JSON |
 | --help / --version | Usage or package version                            |
