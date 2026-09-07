@@ -8,7 +8,7 @@ The full requested scope is the eleven ideas accepted on September 6, 2026. Each
 - [x] Ambient life: road traffic, chimney smoke, boats, cloud shadows, and a day/night lighting cycle, with a pause/reduced-motion control.
 - [ ] Dependency traffic: resolve actual repository imports; select files to see their dependency routes and animated traffic.
 - [x] Unique repository landscapes: stable repository identity seeds distinct terrain and architecture; history playback preserves geography.
-- [ ] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
+- [x] Explorable ruins: deleted files persist as selectable foundations with last contents and deletion commit.
 - [ ] Guided tours: entrypoints, request/dependency journeys, and busiest files; camera movement, stop/advance controls, and explanations.
 - [ ] Activity overlays: churn, size, dependents, and contributor ownership derived from repository data, with a visible legend.
 - [ ] Version comparison: resolve two commits/branches and compare additions, removals, and changes with an interactive before/after slider.
@@ -22,3 +22,5 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 - Architecture: role classification and distinct drawing tests pass; shared folder materials are stable. Native React exploration captures match every scene cell, including the new roof glyphs.
 - Street planning: `tests/urban.test.ts` checks every file entrance meets an avenue, plazas/gardens avoid file facades, lots do not overlap, and distance-based traffic paths traverse junctions correctly. Native React captures and 21 layout/UI checks pass.
 - Ambient life: tests verify paused-history traffic/smoke movement, boat generation, frozen simulation time, day/night rendering, and moving cloud shade. Native React captures retain exact character alignment. `M` freezes ambient time; `N` cycles lighting; `GITCITY_REDUCED_MOTION=1` starts frozen.
+
+- Ruins: deletion/recreation indexing and clickable foundations pass, including exact last-source/deletion-diff revisions and stale-selection guards. All 24 controller, atlas, ruins, and native UI tests pass. `U` toggles foundations.

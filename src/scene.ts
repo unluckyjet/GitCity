@@ -454,6 +454,62 @@ export function renderScene(
           inWorld(xx, yy, "░", mix("#ef9a90", fade * 0.55));
     }
   }
+  if (state.ruinsVisible) {
+    if (state.atlasMode) {
+      const ruins = state.atlas.territories(
+        state.scope,
+        state.visibleRuinBuildings,
+      );
+      const occupied = new Set(
+        state.territories
+          .filter((r) => r.buildings.length)
+          .map((r) => `${r.path}:${r.direct}`),
+      );
+      for (const site of geographyFor(ruins, state.worldStyle.key)
+        .settlements) {
+        if (occupied.has(`${site.region.path}:${site.region.direct}`)) continue;
+        const x = sx(site.x),
+          y = sy(site.y);
+        inWorld(x, y, "⌑", "#a29177");
+        inWorld(x + 1, y, "▁", "#a29177");
+        actions.push({
+          x,
+          y,
+          width: 2,
+          height: 1,
+          label: `${site.region.path || "./"} · deleted files`,
+          run: () => state.enter(site.region.path, site.region.direct),
+        });
+      }
+    } else
+      for (const b of state.visibleRuinBuildings) {
+        const x = sx(b.x),
+          y = sy(b.y),
+          w = Math.max(2, Math.round(b.width * zoom));
+        if (y < top || y >= bottom || x + w < 2 || x >= width - 2) continue;
+        for (let i = 0; i < w; i++)
+          inWorld(
+            x + i,
+            y,
+            i === 0 ? "└" : i === w - 1 ? "┘" : i % 2 ? "▁" : "·",
+            b.path === state.selected ? palette.gold : "#9e947d",
+          );
+        const hx = Math.max(2, x),
+          hw = Math.min(width - 2, x + w) - hx;
+        if (hw > 0)
+          actions.push({
+            x: hx,
+            y: y - 1,
+            width: hw,
+            height: 2,
+            label: `${b.path} · deleted`,
+            run: () => {
+              state.select(b, true);
+              void state.inspect();
+            },
+          });
+      }
+  }
   const light = daylight(state.ambientTime, state.lighting);
   for (let y = top; y < bottom; y++)
     for (let x = 2; x < width - 2; x++) {
@@ -594,7 +650,7 @@ export function renderScene(
             ),
         });
   }
-  if (!state.city.buildings.length) {
+  if (!state.city.buildings.length && !state.visibleRuinBuildings.length) {
     text(
       5,
       top + Math.floor(worldHeight / 2),
@@ -751,12 +807,35 @@ export function renderScene(
     for (let y = py; y < py + ph; y++)
       put(px, y, "│", palette.dim, palette.panel);
     const info = state.detail ?? state.selectedBuilding;
-    text(px + 2, py + 1, "FILE DETAILS", palette.gold, palette.panel, pw - 4);
+    text(
+      px + 2,
+      py + 1,
+      state.selectedRuin ? "DELETED FILE" : "FILE DETAILS",
+      palette.gold,
+      palette.panel,
+      pw - 4,
+    );
     text(px + 2, py + 2, "─".repeat(pw - 4), palette.dim, palette.panel);
     if (info && state.inspectorTab === "details") {
       const name = info.path.split("/").pop()!;
       text(px + 2, py + 4, name, palette.ink, palette.panel, pw - 4);
       const fields = [
+        ...(state.selectedRuin
+          ? [
+              [
+                "Deleted",
+                state.repository.commits[
+                  state.selectedRuin.deletionIndex
+                ]!.hash.slice(0, 7),
+              ],
+              [
+                "Last seen",
+                state.repository.commits[
+                  state.selectedRuin.lastIndex
+                ]!.hash.slice(0, 7),
+              ],
+            ]
+          : []),
         ["Language", info.language],
         [
           "Lines",
@@ -908,6 +987,7 @@ export function renderScene(
       "V / D / G       Source / commit diff / open GitHub",
       "Esc / path      Return to parent / repository",
       "M / N           Pause ambient life / change lighting",
+      "U               Show / hide deleted foundations",
       "WASD / arrows   Pan the view",
       "Click / Enter   Zoom in / inspect files",
       "[ / ]           Previous / next file",

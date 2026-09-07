@@ -229,6 +229,10 @@ export function handleKey(
     state.onChange();
     return;
   }
+  if (name === "u") {
+    state.toggleRuins();
+    return;
+  }
   if (name === "m") {
     state.toggleAmbient();
     return;

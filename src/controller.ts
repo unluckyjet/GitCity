@@ -1,3 +1,4 @@
+import { RuinIndex, type Ruin } from "./ruins.ts";
 import { styleFor, type WorldStyle } from "./world-style.ts";
 import { geographyFor } from "./geography.ts";
 import {
@@ -44,6 +45,12 @@ export class CityController {
   viewport = { width: 100, height: 26 };
   onChange: () => void = () => {};
   readonly atlas: AtlasIndex;
+  readonly ruinIndex: RuinIndex;
+  ruins: Ruin[] = [];
+  ruinsVisible = true;
+  private ruinView:
+    | { key: string; source: Ruin[]; buildings: Building[] }
+    | undefined;
   scope = "";
   direct = false;
   atlasMode = false;
@@ -91,6 +98,7 @@ export class CityController {
     this.repository = repository;
     this.worldStyle = styleFor(repository.githubUrl ?? repository.name);
     this.atlas = new AtlasIndex(repository.allPaths);
+    this.ruinIndex = new RuinIndex(repository.commits);
     this.layout = createCityLayout(
       repository.allPaths,
       repository.commits.flatMap((commit) =>
@@ -119,7 +127,8 @@ export class CityController {
   get selectedBuilding() {
     return (
       this.visibleBuildings.find((b) => b.path === this.selected) ??
-      this.city.buildings.find((b) => b.path === this.selected)
+      this.city.buildings.find((b) => b.path === this.selected) ??
+      this.visibleRuinBuildings.find((b) => b.path === this.selected)
     );
   }
 
@@ -174,6 +183,7 @@ export class CityController {
           });
         this.activity = `+${added} built   ~${edited} edited   −${previous.size} removed`;
       }
+      this.ruins = this.ruinIndex.at(target, new Set(files.map((f) => f.path)));
       this.refreshTerritories();
       this.content = undefined;
       this.contentId++;
@@ -531,7 +541,10 @@ export class CityController {
       index = this.index,
       detailId = ++this.detailId;
     try {
-      const detail = await this.repository.inspect(index, path);
+      const detail = await this.repository.inspect(
+        this.selectedRuin?.lastIndex ?? index,
+        path,
+      );
       if (
         !this.closed &&
         detailId === this.detailId &&
@@ -551,6 +564,34 @@ export class CityController {
     this.onChange();
   }
 
+  get selectedRuin() {
+    return this.ruins.find((r) => r.path === this.selected);
+  }
+  get visibleRuinBuildings(): Building[] {
+    if (!this.ruinsVisible) return [];
+    const key = JSON.stringify([this.scope, this.direct]);
+    if (this.ruinView?.key === key && this.ruinView.source === this.ruins)
+      return this.ruinView.buildings;
+    const files = this.ruins
+      .filter((r) => inScope(r.path, this.scope, this.direct))
+      .map((r) => r.file);
+    let layout = this.layout;
+    if (this.scope || this.direct) {
+      void this.visibleCity;
+      layout = this.scopedLayouts.get(key)!;
+    }
+    const buildings = layout.build(files).buildings;
+    this.ruinView = { key, source: this.ruins, buildings };
+    return buildings;
+  }
+  toggleRuins() {
+    this.ruinsVisible = !this.ruinsVisible;
+    if (!this.ruinsVisible && this.selectedRuin) {
+      this.selected = undefined;
+      this.panel = false;
+    }
+    this.onChange();
+  }
   get visibleCity(): City {
     if (!this.scope && !this.direct) return this.city;
     const key = JSON.stringify([this.scope, this.direct]);
@@ -598,7 +639,12 @@ export class CityController {
     );
   }
   private fitScope() {
-    this.fitBuildings(this.visibleBuildings, 1.4);
+    this.fitBuildings(
+      this.visibleBuildings.length
+        ? this.visibleBuildings
+        : this.visibleRuinBuildings,
+      1.4,
+    );
     if (
       !this.direct &&
       this.atlas.hasChildren(this.scope) &&
@@ -715,8 +761,14 @@ export class CityController {
     try {
       const method =
         tab === "source" ? this.repository.preview : this.repository.diff;
+      const ruin = this.selectedRuin;
+      const contentIndex = ruin
+        ? tab === "source"
+          ? ruin.lastIndex
+          : ruin.deletionIndex
+        : index;
       const result = method
-        ? await method(index, path)
+        ? await method(contentIndex, path)
         : {
             text: "Preview unavailable for this repository.",
             binary: false,
@@ -752,7 +804,7 @@ export class CityController {
       return;
     }
     this.onOpenUrl(
-      `${base}/blob/${this.commit.hash}/${this.selected.split("/").map(encodeURIComponent).join("/")}`,
+      `${base}/blob/${this.repository.commits[this.selectedRuin?.lastIndex ?? this.index]!.hash}/${this.selected.split("/").map(encodeURIComponent).join("/")}`,
     );
   }
   recenter(x: number, y: number) {

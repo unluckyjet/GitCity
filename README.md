@@ -173,3 +173,5 @@ bin/gitcity.mjs    Installed gitcity executable and runtime selection
 `npm pack` builds the compiled application and creates an installable tarball. Publishing remains a separate step. See [validation notes](VALIDATION.md) for tested behavior and limitations.
 
 MIT licensed.
+
+Deleted files leave selectable foundations. Click one to inspect its last contents (`V`), deletion diff (`Shift+D`), or surviving GitHub revision (`G`). Press `U` to hide or show ruins.
