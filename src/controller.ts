@@ -48,12 +48,8 @@ export class CityController {
   readonly worldStyle: WorldStyle;
   readonly layout: CityLayout;
   readonly world: WorldMap;
-  private rootTerritories: Territory[] = [];
   get geography() {
     return this.world.geography(this.territories);
-  }
-  get worldGeography() {
-    return this.world.geography(this.rootTerritories);
   }
   city: City = { districts: [], buildings: [], width: 0, height: 0 };
   index = 0;
@@ -791,7 +787,6 @@ export class CityController {
   select(building: Building, center = false) {
     this.stopPlayback();
     this.autoCamera = false;
-    this.atlasMode = false;
     this.selected = building.path;
     this.content = undefined;
     this.contentId++;
@@ -802,6 +797,7 @@ export class CityController {
       this.fitBuildings([building], 2, true);
       this.settleCamera();
     }
+    this.syncLod();
     if (this.panel) {
       void this.inspect();
       if (this.inspectorTab !== "details")
@@ -923,9 +919,6 @@ export class CityController {
   }
   private refreshTerritories() {
     this.territories = this.atlas.territories(this.scope, this.city.buildings);
-    this.rootTerritories = this.scope
-      ? this.atlas.territories("", this.city.buildings)
-      : this.territories;
   }
   private syncLod() {
     this.atlasMode =
@@ -959,12 +952,6 @@ export class CityController {
     this.panel = false;
     this.refreshTerritories();
     this.fitScope();
-    if (!this.atlasMode && this.zoomTarget < 0.35) {
-      const street =
-        this.visibleCity.districts.find((d) => d.buildings.length)?.buildings ??
-        [];
-      this.fitBuildings(street, 1.4);
-    }
     this.onChange();
   }
   back() {

@@ -119,7 +119,7 @@ export function paintLandscape(
         p.put(x, y, "~", "#21475b");
     }
   // Roads are visual connections between folders, not inferred dependencies.
-  for (const road of state.worldGeography.roads) {
+  for (const road of geo.roads) {
     let last: { x: number; y: number } | undefined;
     for (const point of road.points) {
       const x = sx(point.x),

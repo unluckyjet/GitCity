@@ -102,7 +102,11 @@ export class WorldMap {
         const top = Math.min(...buildings.map((b) => b.y));
         const bottom = Math.max(...buildings.map((b) => b.y));
         value = { x: (left + right) / 2, y: (top + bottom) / 2 };
-      } else value = { x: 0, y: 0 };
+      } else
+        value = {
+          x: this.lifetime.width / 2,
+          y: this.lifetime.height / 2,
+        };
       this.anchors.set(key, value);
     }
     return value;
@@ -130,9 +134,9 @@ export class WorldMap {
       );
       if (!original) continue;
       site.region = original;
-      const point = this.anchor(original);
-      site.x = point.x;
-      site.y = point.y;
+      const city = this.world(site.x, site.y);
+      site.x = city.x;
+      site.y = city.y;
     }
     for (const road of geo.roads) {
       road.points = Array.from({ length: 100 }, (_, i) => {

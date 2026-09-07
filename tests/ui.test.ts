@@ -156,6 +156,8 @@ test("help lists yank and zoom; overlay legend names the selected file and its v
     .join("");
   assert.match(help, /Yank a shareable view/);
   assert.match(help, /Zoom toward the pointer/);
+  assert.match(help, /Height = file size/);
+  assert.match(help, /Shift\+D/);
   state.help = false;
   handleKey(
     state,

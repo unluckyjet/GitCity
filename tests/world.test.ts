@@ -67,6 +67,22 @@ test("world and normalized are inverses; city center maps onto the island", () =
   assert.ok(Math.abs(center.y - 29) < 1e-9);
 });
 
+test("settlements sit on land in city space after inland placement", async () => {
+  const files = Array.from({ length: 40 }, (_, i) =>
+    file(`pkg/${i < 20 ? "core" : "ui"}/f${i}.ts`),
+  );
+  const state = new CityController(repo(files), { history: false, speed: 1 });
+  await state.init();
+  assert.ok(state.geography.settlements.length > 0);
+  for (const site of state.geography.settlements) {
+    assert.ok(
+      state.geography.land(site.x, site.y),
+      `${site.region.path} at ${site.x},${site.y}`,
+    );
+  }
+  state.close();
+});
+
 test("terrain at a city point matches the island sample at its normalized atlas point", () => {
   const paths = Array.from({ length: 40 }, (_, i) =>
     `pkg/${i < 20 ? "core" : "ui"}/f${i}.ts`,

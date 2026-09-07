@@ -1133,16 +1133,18 @@ export function renderScene(
         ["Authors", fmt(info.contributors)],
         ["Changed", date(info.lastModified)],
       ];
-      fields.slice(0, Math.max(0, ph - 8)).forEach(([label, value], i) => {
+      const shown = fields.slice(0, Math.max(0, ph - 8));
+      shown.forEach(([label, value], i) => {
         text(px + 2, py + 6 + i, label, palette.muted, palette.panel);
         text(px + 12, py + 6 + i, value, palette.ink, palette.panel, pw - 14);
       });
-      if (ph >= 17) {
-        text(px + 2, py + 13, "PATH", palette.muted, palette.panel);
-        for (let i = 0; i < 3; i++)
+      const pathY = py + 7 + shown.length;
+      if (pathY + 2 < py + ph) {
+        text(px + 2, pathY, "PATH", palette.muted, palette.panel);
+        for (let i = 0; i < 3 && pathY + 1 + i < py + ph; i++)
           text(
             px + 2,
-            py + 14 + i,
+            pathY + 1 + i,
             info.path.slice(i * (pw - 4), (i + 1) * (pw - 4)),
             palette.ink,
             palette.panel,
@@ -1390,6 +1392,7 @@ export function renderScene(
     const help = [
       "Wheel / + / -   Zoom toward the pointer / center",
       "Y               Yank a shareable view and command",
+      "Height = file size. Color = language.",
       "Click / Enter   Zoom in / inspect files",
       "WASD / arrows   Pan the view",
       "/               Search files and folders; Enter to fly",
@@ -1401,7 +1404,7 @@ export function renderScene(
       "P / O           Import routes / activity overlays",
       "J               Guided tours; [ ] stops, Space pause",
       "B               Compare commits/branches; arrows slide",
-      "V / D / G       Source / commit diff / open GitHub",
+      "V / Shift+D / G Source / commit diff / open GitHub",
       "M / N           Pause ambient / lighting",
       "U               Show / hide deleted foundations",
       "[ / ]           Previous / next file",
@@ -1409,7 +1412,6 @@ export function renderScene(
       ", / .           Slower / faster history playback",
       "Esc / ?         Close panel / help",
       "Q / Ctrl+C      Quit",
-      "Height = file size. Color = language.",
     ];
     const pw = Math.min(67, width - 8),
       ph = Math.min(help.length + 4, height - 2),
