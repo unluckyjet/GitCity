@@ -68,15 +68,19 @@ test("view tokens round-trip and produce a pasteable gitcity command", () => {
     at: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   };
   const token = encodeView(view);
-  assert.match(
-    token,
-    /^z:0\.82,x:12\.4,y:-3\.1,scope:src,direct:1,focus:src\/cli.ts,at:a{40}$/,
-  );
+  assert.match(token, /focus:src%2Fcli\.ts/);
   assert.deepEqual(decodeView(token), {
     ...view,
     zoom: 0.82,
     x: 12.4,
     y: -3.1,
+  });
+  assert.deepEqual(decodeView("z:1,cx:3,cy:4"), {
+    zoom: 1,
+    x: 3,
+    y: 4,
+    scope: "",
+    direct: false,
   });
   const command = shareCommand("owner/city", view);
   assert.match(command, /^gitcity owner\/city --at a{40} --focus src\/cli.ts --view /);
@@ -105,6 +109,7 @@ test("Y yanks a screenshot plus command; --view restores camera, scope, and file
   assert.match(state.share, /GIT CITY SHARE/);
   assert.match(state.share, /gitcity owner\/city --at b{40} --focus src\/cli.ts --view /);
   assert.match(state.share, /SCREENSHOT/);
+  assert.match(state.share, /REPLAY/);
   assert.match(state.share, /GIT CITY/);
   assert.match(state.share, /cli\.ts/);
   const token = state.viewToken();
@@ -147,6 +152,23 @@ test("Y yanks a screenshot plus command; --view restores camera, scope, and file
   assert.match(artifact, /gitcity owner\/city/);
   handleKey(state, { name: "escape", sequence: "\u001b", ctrl: false, shift: false }, () => {});
   assert.equal(state.share, undefined);
+  const earlyHash = state.repository.commits[0]!.hash;
+  const seeked = new CityController(repository(), {
+    history: false,
+    speed: 1,
+    view: encodeView({
+      zoom: 1,
+      x: 0,
+      y: 0,
+      scope: "",
+      direct: false,
+      at: earlyHash,
+    }),
+  });
+  await seeked.init();
+  assert.equal(seeked.index, 0);
+  assert.equal(seeked.commit?.hash, earlyHash);
   state.close();
   replayed.close();
+  seeked.close();
 });

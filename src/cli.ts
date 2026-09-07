@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCityLayout } from "./city.ts";
+import { decodeView, shareCommand, shareRepoId } from "./view.ts";
 import type { RepoFile, Repository } from "./types.ts";
 
 const require = createRequire(import.meta.url);
@@ -118,6 +119,7 @@ export function parseArgs(args: string[]): CliOptions {
     options.repo = arg;
     hasRepo = true;
   }
+  if (options.view) decodeView(options.view);
   return options;
 }
 
@@ -148,11 +150,13 @@ Examples:
   gitcity expressjs/express --history --speed 4
   gitcity . --exclude '*.lock' --exclude 'docs/**'
   gitcity . --snapshot
+  gitcity owner/repo --at HASH --view z:0.8,x:12,y:3
 
 Controls:
   WASD / arrows  Move camera (Explore mode)
   Mouse          Click dense blocks to zoom in; click a building to inspect
   Mouse wheel    Zoom toward the pointer (pauses playback)
+  Y              Yank a shareable view to gitcity-share.txt
   Enter          Inspect selected building
   [ / ]          Select previous / next building
   Tab            Toggle inspector panel
@@ -394,7 +398,29 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       : Math.max(0, repository.commits.length - 1);
     if (options.snapshot || options.json) {
       const files = await repository.snapshot(index);
-      if (options.json) {
+      if (options.view) {
+        const { CityController } = await import("./controller.ts");
+        const { renderScene } = await import("./scene.ts");
+        const state = new CityController(repository, {
+          history: options.history,
+          speed: options.speed,
+          view: options.view,
+          focus: options.focus,
+        });
+        await state.init();
+        const view = state.captureView();
+        const command = shareCommand(shareRepoId(repository), view);
+        if (options.json) {
+          process.stdout.write(
+            `${JSON.stringify({ ...formatCityJson(repository, state.index, files, { history: options.history }), command, camera: view }, null, 2)}\n`,
+          );
+        } else {
+          process.stdout.write(
+            state.yankShare(renderScene(state, 100, 32)),
+          );
+        }
+        state.close();
+      } else if (options.json) {
         process.stdout.write(
           `${JSON.stringify(formatCityJson(repository, index, files, { history: options.history }), null, 2)}\n`,
         );

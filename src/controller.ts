@@ -2,9 +2,11 @@ import { WorldMap } from "./world.ts";
 import {
   decodeView,
   encodeView,
+  formatReplay,
   formatScreenshot,
   formatShareArtifact,
   shareCommand,
+  shareRepoId,
   type ViewLocation,
 } from "./view.ts";
 import type { Scene } from "./scene.ts";
@@ -376,8 +378,13 @@ export class CityController {
     else this.resetCamera(true);
     if (this.initialOptions.compare)
       await this.startComparison(this.initialOptions.compare);
-    if (this.initialOptions.view) this.applyView(this.initialOptions.view);
-    if (this.initialOptions.focus && !this.selected)
+    if (this.initialOptions.view)
+      await this.applyView(this.initialOptions.view);
+    if (
+      this.initialOptions.focus &&
+      !this.initialOptions.view &&
+      !this.selected
+    )
       this.visitFile(this.initialOptions.focus);
   }
 
@@ -393,10 +400,17 @@ export class CityController {
     };
   }
 
-  applyView(token: string) {
+  async applyView(token: string) {
     const view = decodeView(token);
     this.stopPlayback();
     this.autoCamera = false;
+    if (view.at) {
+      const index = this.repository.commits.findIndex(
+        (commit) =>
+          commit.hash === view.at || commit.hash.startsWith(view.at!),
+      );
+      if (index >= 0) await this.seek(index);
+    }
     this.scope = view.scope;
     this.direct = view.direct;
     this.refreshTerritories();
@@ -414,8 +428,12 @@ export class CityController {
 
   yankShare(scene: Scene) {
     const view = this.captureView();
-    const command = shareCommand(this.repository.name, view);
-    this.share = formatShareArtifact(command, formatScreenshot(scene));
+    const command = shareCommand(shareRepoId(this.repository), view);
+    const shot = formatScreenshot(scene);
+    const replay = formatReplay([
+      { title: view.at?.slice(0, 8) || "view", body: shot },
+    ]);
+    this.share = formatShareArtifact(command, shot, replay);
     this.help = false;
     return this.share;
   }

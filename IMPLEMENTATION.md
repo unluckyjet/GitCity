@@ -35,4 +35,4 @@ Completion requires native OpenTUI interaction and visual checks on small fixtur
 
 - Continuous zoom: `WorldMap` keeps city lots, terrain, settlements, and the minimap in one affine space. `tests/world.test.ts` checks invertibility, terrain sampling, and that entering a folder or changing zoom does not move surviving buildings or settlement anchors. Pointer-stable `zoomAt` still holds. Landscape LOD is `zoom < 0.35`, not a coordinate reset.
 
-- Shareable views: `Y` yanks a text screenshot plus `gitcity owner/repo --at HASH --focus path --view TOKEN`. `tests/view.test.ts` round-trips the token, restores camera/scope/selection through `CityController` init, and builds a two-commit replay artifact from real `renderScene` frames.
+- Shareable views: `Y` yanks a text screenshot plus `gitcity owner/repo --at HASH --focus path --view TOKEN` and writes `gitcity-share.txt`. `--view` is decoded in `parseArgs` before clone. `applyView` seeks `at:` inside loaded history. `--snapshot --view` prints the share artifact. `tests/view.test.ts` and `tests/cli.test.ts` cover restore, parse-time validation, and command round-trip.

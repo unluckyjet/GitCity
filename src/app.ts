@@ -10,6 +10,7 @@ import {
 } from "@opentui/core";
 import { CityController } from "./controller.ts";
 import { renderScene, palette, type Scene } from "./scene.ts";
+import { writeShareArtifact } from "./view.ts";
 import type { AppOptions, Repository } from "./types.ts";
 
 const colors = new Map<string, RGBA>();
@@ -35,7 +36,7 @@ export class CityView extends Renderable {
     });
     this.controller = controller;
     this.onMouseDown = (event) => {
-      if (!this.scene || controller.help) return;
+      if (!this.scene || controller.help || controller.share) return;
       const x = event.x - this.screenX,
         y = event.y - this.screenY;
       const action = [...this.scene.actions]
@@ -100,6 +101,7 @@ export class CityView extends Renderable {
         !this.scene ||
         controller.searchOpen ||
         controller.help ||
+        controller.share ||
         controller.panel
       )
         return;
@@ -118,7 +120,13 @@ export class CityView extends Renderable {
       }
     };
     this.onMouseScroll = (event) => {
-      if (controller.help || controller.searchOpen || !event.scroll) return;
+      if (
+        controller.help ||
+        controller.share ||
+        controller.searchOpen ||
+        !event.scroll
+      )
+        return;
       const x = event.x - this.screenX,
         y = event.y - this.screenY;
       if (y < 5 || y >= this.height - 9) return;
@@ -316,7 +324,7 @@ export function handleKey(
   if (name === "y") {
     const width = state.viewport.width + 4;
     const height = state.viewport.height + 14;
-    state.yankShare(renderScene(state, width, height));
+    writeShareArtifact(state.yankShare(renderScene(state, width, height)));
     state.onChange();
     return;
   }

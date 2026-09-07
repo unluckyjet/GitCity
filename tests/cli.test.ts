@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { formatCityJson, formatSnapshot, parseArgs } from "../src/cli.ts";
+import { decodeView, encodeView, shareCommand } from "../src/view.ts";
 import type { Repository } from "../src/types.ts";
 
 test("CLI accepts the documented GitHub form and repeated quoted exclusions", () => {
@@ -23,6 +24,28 @@ test("CLI defaults to cwd and supports explicit option terminator for paths", ()
   assert.equal(parseArgs([]).repo, ".");
   assert.equal(parseArgs(["--snapshot", "--", "-my-repo"]).repo, "-my-repo");
   assert.equal(parseArgs(["--speed=0.25", "--json"]).speed, 0.25);
+});
+
+test("CLI validates --view before load and round-trips a share command", () => {
+  const token = encodeView({
+    zoom: 0.5,
+    x: 2,
+    y: 4,
+    scope: "src",
+    direct: false,
+    selected: "src/a.ts",
+    at: "abc",
+  });
+  const options = parseArgs(["owner/city", "--view", token, "--focus", "src/a.ts"]);
+  assert.equal(options.view, token);
+  assert.deepEqual(decodeView(options.view!), decodeView(token));
+  const command = shareCommand("owner/city", decodeView(token));
+  const restored = parseArgs(command.split(" ").slice(1));
+  assert.equal(restored.repo, "owner/city");
+  assert.equal(restored.at, "abc");
+  assert.equal(restored.focus, "src/a.ts");
+  assert.deepEqual(decodeView(restored.view!), decodeView(token));
+  assert.throws(() => parseArgs(["--view", "nope"]), /Invalid view field/);
 });
 
 test("CLI rejects invalid speed, missing option values, typos, and extra repos", () => {
