@@ -1,0 +1,53 @@
+{
+  "name": "gitcity",
+  "version": "0.4.0",
+  "description": "Explore your codebase as a living terminal city.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "gitcity": "bin/gitcity.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "VALIDATION.md",
+    "LICENSE",
+    "docs/images"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node bin/gitcity.mjs",
+    "dev": "node --experimental-ffi src/cli.ts",
+    "test": "node --experimental-ffi --test tests/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@opentui/core": "0.5.10",
+    "string-width": "7.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "terminal",
+    "tui",
+    "opentui",
+    "visualization"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unluckyjet/GitCity.git"
+  },
+  "homepage": "https://github.com/unluckyjet/GitCity#readme",
+  "bugs": {
+    "url": "https://github.com/unluckyjet/GitCity/issues"
+  }
+}
